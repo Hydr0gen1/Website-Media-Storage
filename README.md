@@ -250,6 +250,212 @@ sudo certbot renew --dry-run
 
 ---
 
+## Data Storage & Backups
+
+### Where Your Data Lives
+
+Data is split across two Docker volumes that persist across container restarts. They are only destroyed if you explicitly run `docker compose down -v`.
+
+| What | Docker volume | Host path |
+|------|---------------|-----------|
+| File metadata (filenames, dates, sizes) | `website-media-storage_pgdata` | `/var/lib/docker/volumes/website-media-storage_pgdata/_data/` |
+| Uploaded media files | `website-media-storage_uploads` | `/var/lib/docker/volumes/website-media-storage_uploads/_data/` |
+
+---
+
+### Monitor Storage Usage
+
+```bash
+# Disk space on the host
+df -h
+
+# Size of each volume's data directory
+du -sh /var/lib/docker/volumes/website-media-storage_uploads/_data/
+du -sh /var/lib/docker/volumes/website-media-storage_pgdata/_data/
+
+# Docker volume list
+docker volume ls
+```
+
+When `/var/lib/docker/volumes` approaches 80% of disk capacity, either delete unneeded files through the app, archive old uploads to external storage, or expand the server's disk.
+
+---
+
+### Backup the Database
+
+**Manual:**
+
+```bash
+docker exec website-media-storage-db-1 pg_dump -U postgres -d mediastore | gzip > mediastore_backup.sql.gz
+```
+
+**Automated daily cron job** (runs at 2 AM):
+
+```bash
+crontab -e
+# Add:
+0 2 * * * docker exec website-media-storage-db-1 pg_dump -U postgres -d mediastore | gzip > ~/backups/mediastore_$(date +\%Y\%m\%d).sql.gz
+```
+
+The compressed dump is typically only a few MB regardless of how many files you have, since it only stores metadata.
+
+---
+
+### Backup Uploaded Files
+
+**Tar archive** (simple, works anywhere):
+
+```bash
+tar -czf uploads_backup_$(date +%Y%m%d).tar.gz \
+  /var/lib/docker/volumes/website-media-storage_uploads/_data/
+```
+
+**Rsync** (incremental — only copies changes, faster for large libraries):
+
+```bash
+rsync -avz /var/lib/docker/volumes/website-media-storage_uploads/_data/ \
+  /path/to/external/backup/
+```
+
+**Docker volume export** (self-contained, no host path needed):
+
+```bash
+docker run --rm \
+  -v website-media-storage_uploads:/uploads \
+  -v $(pwd):/backup \
+  alpine tar czf /backup/uploads.tar.gz -C / uploads
+```
+
+---
+
+### Automated Backup Script
+
+Save as `~/backup-media-storage.sh`:
+
+```bash
+#!/bin/bash
+
+BACKUP_DIR=~/media-storage-backups
+DATE=$(date +%Y%m%d_%H%M%S)
+CONTAINER=website-media-storage-db-1
+
+mkdir -p "$BACKUP_DIR"
+echo "Backup started: $(date)"
+
+# Database
+docker exec "$CONTAINER" pg_dump -U postgres -d mediastore \
+  | gzip > "$BACKUP_DIR/db_$DATE.sql.gz"
+echo "  Database backed up."
+
+# Uploads
+tar -czf "$BACKUP_DIR/uploads_$DATE.tar.gz" \
+  /var/lib/docker/volumes/website-media-storage_uploads/_data/
+echo "  Uploads backed up."
+
+# Retain last 7 days only
+find "$BACKUP_DIR" -name "db_*.sql.gz"      -mtime +7 -delete
+find "$BACKUP_DIR" -name "uploads_*.tar.gz" -mtime +7 -delete
+
+echo "Backup finished: $(date)"
+```
+
+```bash
+chmod +x ~/backup-media-storage.sh
+
+crontab -e
+# Add (runs daily at 3 AM):
+0 3 * * * ~/backup-media-storage.sh >> ~/media-storage-backups/backup.log 2>&1
+```
+
+---
+
+### Restore from Backup
+
+**Restore the database:**
+
+```bash
+docker compose down
+# Bring only the DB up for the restore
+docker compose up -d db
+
+gunzip < mediastore_backup.sql.gz \
+  | docker exec -i website-media-storage-db-1 psql -U postgres -d mediastore
+
+docker compose up -d
+```
+
+**Restore uploaded files:**
+
+```bash
+docker compose down
+docker volume rm website-media-storage_uploads
+
+tar -xzf uploads_backup_YYYYMMDD.tar.gz -C /var/lib/docker/volumes/
+
+docker compose up -d
+```
+
+---
+
+### Cloud Backup (Optional)
+
+Use **rclone** to sync local backups to AWS S3, Backblaze B2, Google Drive, or any other provider:
+
+```bash
+curl https://rclone.org/install.sh | sudo bash
+rclone config   # follow prompts to add your remote
+
+# Add to the end of backup-media-storage.sh:
+rclone sync ~/media-storage-backups/ myremote:media-storage-backups/
+```
+
+---
+
+### Backup Checklist
+
+- [ ] Backups stored on a **separate machine**, not the same server
+- [ ] Encrypt cloud backups (`gpg` or provider-side encryption)
+- [ ] **Test a restore quarterly** — don't discover a broken backup during an emergency
+- [ ] Keep at least 2 weeks of daily (or weekly) backups
+- [ ] Verify cron runs: `grep backup /var/log/syslog` or check `~/media-storage-backups/backup.log`
+- [ ] Follow the **3-2-1 rule**: 3 copies, 2 different media types, 1 offsite
+
+---
+
+### Storage Estimates
+
+| Content | Metadata size | Storage size |
+|---------|---------------|--------------|
+| 100 video files (500 MB avg) | ~5 MB compressed SQL | ~50 GB |
+| 1,000 audio files (5 MB avg) | ~50 MB compressed SQL | ~5 GB |
+| DB backup (any size library) | Typically < 50 MB | — |
+
+---
+
+### Quick Reference
+
+```bash
+# Backup DB
+docker exec website-media-storage-db-1 pg_dump -U postgres -d mediastore | gzip > db.sql.gz
+
+# Backup files
+tar -czf uploads.tar.gz /var/lib/docker/volumes/website-media-storage_uploads/_data/
+
+# Check volume sizes
+du -sh /var/lib/docker/volumes/website-media-storage_*/_data/
+
+# Restore DB
+gunzip < db.sql.gz | docker exec -i website-media-storage-db-1 psql -U postgres -d mediastore
+
+# View live logs
+docker compose logs -f
+
+# Check disk
+df -h
+```
+
+---
+
 ## Configuration
 
 | Variable      | Default      | Description                     |
