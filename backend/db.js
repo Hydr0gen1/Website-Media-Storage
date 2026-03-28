@@ -74,6 +74,8 @@ async function initDB() {
       )
     `);
 
+    await client.query('DELETE FROM sessions WHERE expiresat < NOW()');
+
     console.log('Database initialized successfully');
   } finally {
     client.release();

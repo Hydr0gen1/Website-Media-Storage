@@ -1,6 +1,8 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
+const rateLimit = require('express-rate-limit');
+const { optionalAuth, requireAuth } = require('../middleware/auth');
 const { uploadFile, listFiles, deleteFile, downloadFile } = require('../controllers/fileController');
 
 const router = express.Router();
@@ -33,9 +35,17 @@ const upload = multer({
   limits: { fileSize: 2 * 1024 * 1024 * 1024 }, // 2 GB
 });
 
-router.post('/upload', upload.single('file'), uploadFile);
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later' },
+});
+
+router.post('/upload', uploadLimiter, optionalAuth, requireAuth, upload.single('file'), uploadFile);
 router.get('/files', listFiles);
-router.delete('/files/:id', deleteFile);
+router.delete('/files/:id', optionalAuth, requireAuth, deleteFile);
 router.get('/files/:id/download', downloadFile);
 
 module.exports = router;
