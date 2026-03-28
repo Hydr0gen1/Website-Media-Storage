@@ -4,22 +4,33 @@ A self-hosted media storage web application for uploading, organizing, and strea
 
 ## Features
 
+### Phase 1 — Core Media Library
 - Upload `.mov`, `.mp4`, `.mp3`, `.wav`, `.ogg` files (up to 2 GB each)
-- Drag-and-drop or file picker upload with progress tracking
-- Inline video and audio playback with range request support
-- File browser with video/audio sections, size, and date
-- Delete files with confirmation
-- Dark mode UI, responsive layout
-- PostgreSQL metadata storage, Docker volume for file persistence
+- Drag-and-drop or file picker upload with per-file progress bars
+- Inline video and audio streaming with range-request support (seekable)
+- File browser sorted by date, name, or size (asc/desc toggle)
+- Filter view by All / Video / Audio
+- Delete files with confirmation dialog
+- Dark mode UI (Claude orange accent), responsive layout
+- PostgreSQL metadata storage, Docker volumes for persistence
+
+### Phase 2 — Auth, Playlists & Auto-Sort
+- **User accounts** — register and sign in with username + password (bcrypt hashed)
+- **Session tokens** — 30-day sessions stored in the database, persisted in `localStorage`
+- **Playlists** — create audio or video playlists, add/remove files, reorder tracks
+- **Playlist playback** — queue view in the player with Prev/Next controls and auto-advance on track end
+- **Add to playlist** — per-file context menu to add directly to a compatible playlist
+- **Auto-sort** — server-side sort by name, date, or size via `GET /api/files?sort=&order=`
+- Playlists are user-specific; file browsing and playback work without an account
 
 ## Tech Stack
 
-| Layer    | Technology                     |
-|----------|--------------------------------|
-| Backend  | Node.js, Express, Multer, pg   |
-| Frontend | React 18, Vite, react-player   |
-| Database | PostgreSQL 16                  |
-| Deploy   | Docker, docker-compose         |
+| Layer    | Technology                              |
+|----------|-----------------------------------------|
+| Backend  | Node.js, Express, Multer, pg, bcrypt    |
+| Frontend | React 18, Vite, react-player, axios     |
+| Database | PostgreSQL 16                           |
+| Deploy   | Docker, docker-compose                  |
 
 ## Quick Start
 
@@ -250,6 +261,212 @@ sudo certbot renew --dry-run
 
 ---
 
+## Data Storage & Backups
+
+### Where Your Data Lives
+
+Data is split across two Docker volumes that persist across container restarts. They are only destroyed if you explicitly run `docker compose down -v`.
+
+| What | Docker volume | Host path |
+|------|---------------|-----------|
+| File metadata (filenames, dates, sizes) | `website-media-storage_pgdata` | `/var/lib/docker/volumes/website-media-storage_pgdata/_data/` |
+| Uploaded media files | `website-media-storage_uploads` | `/var/lib/docker/volumes/website-media-storage_uploads/_data/` |
+
+---
+
+### Monitor Storage Usage
+
+```bash
+# Disk space on the host
+df -h
+
+# Size of each volume's data directory
+du -sh /var/lib/docker/volumes/website-media-storage_uploads/_data/
+du -sh /var/lib/docker/volumes/website-media-storage_pgdata/_data/
+
+# Docker volume list
+docker volume ls
+```
+
+When `/var/lib/docker/volumes` approaches 80% of disk capacity, either delete unneeded files through the app, archive old uploads to external storage, or expand the server's disk.
+
+---
+
+### Backup the Database
+
+**Manual:**
+
+```bash
+docker exec website-media-storage-db-1 pg_dump -U postgres -d mediastore | gzip > mediastore_backup.sql.gz
+```
+
+**Automated daily cron job** (runs at 2 AM):
+
+```bash
+crontab -e
+# Add:
+0 2 * * * docker exec website-media-storage-db-1 pg_dump -U postgres -d mediastore | gzip > ~/backups/mediastore_$(date +\%Y\%m\%d).sql.gz
+```
+
+The compressed dump is typically only a few MB regardless of how many files you have, since it only stores metadata.
+
+---
+
+### Backup Uploaded Files
+
+**Tar archive** (simple, works anywhere):
+
+```bash
+tar -czf uploads_backup_$(date +%Y%m%d).tar.gz \
+  /var/lib/docker/volumes/website-media-storage_uploads/_data/
+```
+
+**Rsync** (incremental — only copies changes, faster for large libraries):
+
+```bash
+rsync -avz /var/lib/docker/volumes/website-media-storage_uploads/_data/ \
+  /path/to/external/backup/
+```
+
+**Docker volume export** (self-contained, no host path needed):
+
+```bash
+docker run --rm \
+  -v website-media-storage_uploads:/uploads \
+  -v $(pwd):/backup \
+  alpine tar czf /backup/uploads.tar.gz -C / uploads
+```
+
+---
+
+### Automated Backup Script
+
+Save as `~/backup-media-storage.sh`:
+
+```bash
+#!/bin/bash
+
+BACKUP_DIR=~/media-storage-backups
+DATE=$(date +%Y%m%d_%H%M%S)
+CONTAINER=website-media-storage-db-1
+
+mkdir -p "$BACKUP_DIR"
+echo "Backup started: $(date)"
+
+# Database
+docker exec "$CONTAINER" pg_dump -U postgres -d mediastore \
+  | gzip > "$BACKUP_DIR/db_$DATE.sql.gz"
+echo "  Database backed up."
+
+# Uploads
+tar -czf "$BACKUP_DIR/uploads_$DATE.tar.gz" \
+  /var/lib/docker/volumes/website-media-storage_uploads/_data/
+echo "  Uploads backed up."
+
+# Retain last 7 days only
+find "$BACKUP_DIR" -name "db_*.sql.gz"      -mtime +7 -delete
+find "$BACKUP_DIR" -name "uploads_*.tar.gz" -mtime +7 -delete
+
+echo "Backup finished: $(date)"
+```
+
+```bash
+chmod +x ~/backup-media-storage.sh
+
+crontab -e
+# Add (runs daily at 3 AM):
+0 3 * * * ~/backup-media-storage.sh >> ~/media-storage-backups/backup.log 2>&1
+```
+
+---
+
+### Restore from Backup
+
+**Restore the database:**
+
+```bash
+docker compose down
+# Bring only the DB up for the restore
+docker compose up -d db
+
+gunzip < mediastore_backup.sql.gz \
+  | docker exec -i website-media-storage-db-1 psql -U postgres -d mediastore
+
+docker compose up -d
+```
+
+**Restore uploaded files:**
+
+```bash
+docker compose down
+docker volume rm website-media-storage_uploads
+
+tar -xzf uploads_backup_YYYYMMDD.tar.gz -C /var/lib/docker/volumes/
+
+docker compose up -d
+```
+
+---
+
+### Cloud Backup (Optional)
+
+Use **rclone** to sync local backups to AWS S3, Backblaze B2, Google Drive, or any other provider:
+
+```bash
+curl https://rclone.org/install.sh | sudo bash
+rclone config   # follow prompts to add your remote
+
+# Add to the end of backup-media-storage.sh:
+rclone sync ~/media-storage-backups/ myremote:media-storage-backups/
+```
+
+---
+
+### Backup Checklist
+
+- [ ] Backups stored on a **separate machine**, not the same server
+- [ ] Encrypt cloud backups (`gpg` or provider-side encryption)
+- [ ] **Test a restore quarterly** — don't discover a broken backup during an emergency
+- [ ] Keep at least 2 weeks of daily (or weekly) backups
+- [ ] Verify cron runs: `grep backup /var/log/syslog` or check `~/media-storage-backups/backup.log`
+- [ ] Follow the **3-2-1 rule**: 3 copies, 2 different media types, 1 offsite
+
+---
+
+### Storage Estimates
+
+| Content | Metadata size | Storage size |
+|---------|---------------|--------------|
+| 100 video files (500 MB avg) | ~5 MB compressed SQL | ~50 GB |
+| 1,000 audio files (5 MB avg) | ~50 MB compressed SQL | ~5 GB |
+| DB backup (any size library) | Typically < 50 MB | — |
+
+---
+
+### Quick Reference
+
+```bash
+# Backup DB
+docker exec website-media-storage-db-1 pg_dump -U postgres -d mediastore | gzip > db.sql.gz
+
+# Backup files
+tar -czf uploads.tar.gz /var/lib/docker/volumes/website-media-storage_uploads/_data/
+
+# Check volume sizes
+du -sh /var/lib/docker/volumes/website-media-storage_*/_data/
+
+# Restore DB
+gunzip < db.sql.gz | docker exec -i website-media-storage-db-1 psql -U postgres -d mediastore
+
+# View live logs
+docker compose logs -f
+
+# Check disk
+df -h
+```
+
+---
+
 ## Configuration
 
 | Variable      | Default      | Description                     |
@@ -265,13 +482,37 @@ sudo certbot renew --dry-run
 
 ## API Reference
 
-| Method   | Endpoint                  | Description               |
-|----------|---------------------------|---------------------------|
-| `POST`   | `/api/upload`             | Upload a file (multipart) |
-| `GET`    | `/api/files`              | List all files            |
-| `DELETE` | `/api/files/:id`          | Delete a file             |
-| `GET`    | `/api/files/:id/download` | Stream/download a file    |
-| `GET`    | `/health`                 | Health check              |
+### Files
+
+| Method   | Endpoint                  | Description                                          |
+|----------|---------------------------|------------------------------------------------------|
+| `POST`   | `/api/upload`             | Upload a file (multipart/form-data, field: `file`)   |
+| `GET`    | `/api/files`              | List files — accepts `?type=video\|audio&sort=date\|name\|size&order=asc\|desc` |
+| `DELETE` | `/api/files/:id`          | Delete a file and remove it from disk                |
+| `GET`    | `/api/files/:id/download` | Stream file (supports `Range` header for seeking)    |
+| `GET`    | `/health`                 | Health check                                         |
+
+### Auth
+
+| Method | Endpoint              | Description                                  |
+|--------|-----------------------|----------------------------------------------|
+| `POST` | `/api/auth/register`  | Create account `{ username, password }`      |
+| `POST` | `/api/auth/login`     | Sign in, returns `{ user, token }`           |
+| `POST` | `/api/auth/logout`    | Invalidate session token                     |
+| `GET`  | `/api/auth/me`        | Return current user (requires Bearer token)  |
+
+### Playlists (all require `Authorization: Bearer <token>`)
+
+| Method   | Endpoint                        | Description                              |
+|----------|---------------------------------|------------------------------------------|
+| `POST`   | `/api/playlists`                | Create playlist `{ name, type, description? }` |
+| `GET`    | `/api/playlists`                | List user's playlists (with item counts) |
+| `GET`    | `/api/playlists/:id`            | Get playlist with ordered file list      |
+| `PUT`    | `/api/playlists/:id`            | Rename / update description              |
+| `DELETE` | `/api/playlists/:id`            | Delete playlist (files are kept)         |
+| `POST`   | `/api/playlists/:id/items`      | Add file `{ fileId }`                    |
+| `DELETE` | `/api/playlists/:id/items/:fid` | Remove file from playlist                |
+| `PUT`    | `/api/playlists/:id/reorder`    | Reorder `{ orderedFileIds: [...] }`      |
 
 ## Local Development
 
@@ -298,23 +539,34 @@ npm run dev
 
 ```
 ├── backend/
-│   ├── server.js               # Express app entry point
-│   ├── db.js                   # PostgreSQL pool + schema init
-│   ├── routes/files.js         # Multer config + route definitions
+│   ├── server.js                    # Express entry point, route registration
+│   ├── db.js                        # PostgreSQL pool + auto-schema init
+│   ├── middleware/
+│   │   └── auth.js                  # optionalAuth / requireAuth middleware
+│   ├── routes/
+│   │   ├── files.js                 # Multer config + file routes
+│   │   ├── auth.js                  # Auth routes
+│   │   └── playlists.js             # Playlist routes (all require auth)
 │   ├── controllers/
-│   │   └── fileController.js   # Upload, list, delete, stream handlers
+│   │   ├── fileController.js        # Upload, list (sort/filter), delete, stream
+│   │   ├── authController.js        # Register, login, logout, me
+│   │   └── playlistController.js    # Playlist CRUD + item management
 │   └── .env.example
 ├── frontend/
 │   ├── src/
-│   │   ├── App.jsx             # Root component, state management
-│   │   ├── App.css             # Dark mode styles
+│   │   ├── App.jsx                  # Root component, all state management
+│   │   ├── App.css                  # Full design system (orange dark mode)
 │   │   └── components/
-│   │       ├── UploadZone.jsx  # Drag-and-drop upload with progress
-│   │       ├── FileList.jsx    # Browsable file list
-│   │       └── MediaPlayer.jsx # Video/audio player
+│   │       ├── UploadZone.jsx       # Drag-and-drop upload with progress
+│   │       ├── FileList.jsx         # File list with sort controls + playlist menu
+│   │       ├── MediaPlayer.jsx      # Video/audio player with playlist queue
+│   │       ├── AuthModal.jsx        # Login / register modal
+│   │       ├── PlaylistPanel.jsx    # Playlist list + create form
+│   │       └── PlaylistView.jsx     # Playlist detail, reorder, add files
 │   ├── vite.config.js
 │   └── index.html
-├── Dockerfile                  # Multi-stage build
-├── docker-compose.yml          # App + PostgreSQL services
+├── Dockerfile                       # Multi-stage build (frontend → backend/public)
+├── docker-compose.yml               # App + PostgreSQL + named volumes
+├── CLAUDE.md                        # Dev notes for Claude Code
 └── .dockerignore
 ```

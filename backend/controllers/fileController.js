@@ -78,8 +78,26 @@ async function uploadFile(req, res, next) {
 
 async function listFiles(req, res, next) {
   try {
+    const { type, sort = 'date', order = 'desc' } = req.query;
+
+    const SORT_COLS = {
+      name: 'originalfilename',
+      date: 'uploaddate',
+      size: 'size',
+    };
+    const sortCol = SORT_COLS[sort] || 'uploaddate';
+    const sortOrder = order === 'asc' ? 'ASC' : 'DESC';
+
+    const params = [];
+    let where = '';
+    if (type === 'video' || type === 'audio') {
+      where = 'WHERE filetype = $1';
+      params.push(type);
+    }
+
     const result = await pool.query(
-      'SELECT * FROM files ORDER BY uploadDate DESC'
+      `SELECT * FROM files ${where} ORDER BY ${sortCol} ${sortOrder}`,
+      params
     );
     res.json(result.rows.map(formatFileRecord));
   } catch (err) {

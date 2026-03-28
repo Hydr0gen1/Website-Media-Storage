@@ -10,6 +10,8 @@ const cors = require('cors');
 const path = require('path');
 const { initDB } = require('./db');
 const filesRouter = require('./routes/files');
+const authRouter = require('./routes/auth');
+const playlistsRouter = require('./routes/playlists');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -22,6 +24,8 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // API routes
 app.use('/api', filesRouter);
+app.use('/api/auth', authRouter);
+app.use('/api/playlists', playlistsRouter);
 
 // Health check
 app.get('/health', (req, res) => {

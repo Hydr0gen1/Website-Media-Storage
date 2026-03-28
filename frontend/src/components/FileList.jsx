@@ -1,25 +1,39 @@
-const FILE_ICONS = {
-  mp4: '🎬',
-  mov: '🎬',
-  mp3: '🎵',
-  wav: '🎵',
-  ogg: '🎵',
-};
+import { useState, useRef, useEffect } from 'react';
+
+const FILE_ICONS = { mp4: '🎬', mov: '🎬', mp3: '🎵', wav: '🎵', ogg: '🎵' };
 
 function getIcon(filename) {
   const ext = filename.split('.').pop().toLowerCase();
   return FILE_ICONS[ext] || '📄';
 }
 
+const SORT_OPTIONS = [
+  { value: 'date', label: 'Date' },
+  { value: 'name', label: 'Name' },
+  { value: 'size', label: 'Size' },
+];
+
 export default function FileList({
   files,
   activeFile,
   loading,
+  sort,
+  onSortChange,
   onSelect,
   onDelete,
+  playlists,
+  onAddToPlaylist,
   formatBytes,
   formatDate,
 }) {
+  const handleSortField = (field) => {
+    if (sort.field === field) {
+      onSortChange({ ...sort, order: sort.order === 'asc' ? 'desc' : 'asc' });
+    } else {
+      onSortChange({ field, order: field === 'name' ? 'asc' : 'desc' });
+    }
+  };
+
   if (loading) {
     return (
       <div className="file-list-empty">
@@ -31,42 +45,45 @@ export default function FileList({
 
   if (files.length === 0) {
     return (
-      <div className="file-list-empty">
-        <span className="empty-icon">📭</span>
-        No files yet. Upload some media to get started.
-      </div>
+      <>
+        <div className="sort-bar">
+          {SORT_OPTIONS.map((o) => (
+            <button
+              key={o.value}
+              className={`sort-btn ${sort.field === o.value ? 'active' : ''}`}
+              onClick={() => handleSortField(o.value)}
+            >
+              {o.label}
+              {sort.field === o.value && (
+                <span className="sort-arrow">{sort.order === 'asc' ? ' ↑' : ' ↓'}</span>
+              )}
+            </button>
+          ))}
+        </div>
+        <div className="file-list-empty">
+          <span className="empty-icon">📭</span>
+          No files yet. Upload some media to get started.
+        </div>
+      </>
     );
   }
 
-  const videos = files.filter((f) => f.fileType === 'video');
-  const audio = files.filter((f) => f.fileType === 'audio');
-
-  const renderSection = (sectionFiles, type, label) => {
-    if (sectionFiles.length === 0) return null;
-    return (
-      <>
-        <div className="section-heading">
-          <span className={`section-dot ${type}`} />
-          {label} ({sectionFiles.length})
-        </div>
-        {sectionFiles.map((file) => (
-          <FileItem
-            key={file.id}
-            file={file}
-            active={activeFile?.id === file.id}
-            onSelect={onSelect}
-            onDelete={onDelete}
-            formatBytes={formatBytes}
-            formatDate={formatDate}
-          />
+  return (
+    <>
+      <div className="sort-bar">
+        {SORT_OPTIONS.map((o) => (
+          <button
+            key={o.value}
+            className={`sort-btn ${sort.field === o.value ? 'active' : ''}`}
+            onClick={() => handleSortField(o.value)}
+          >
+            {o.label}
+            {sort.field === o.value && (
+              <span className="sort-arrow">{sort.order === 'asc' ? ' ↑' : ' ↓'}</span>
+            )}
+          </button>
         ))}
-      </>
-    );
-  };
-
-  // If all same type, render flat list
-  if (videos.length === 0 || audio.length === 0) {
-    return (
+      </div>
       <div className="file-list">
         {files.map((file) => (
           <FileItem
@@ -75,23 +92,35 @@ export default function FileList({
             active={activeFile?.id === file.id}
             onSelect={onSelect}
             onDelete={onDelete}
+            playlists={playlists}
+            onAddToPlaylist={onAddToPlaylist}
             formatBytes={formatBytes}
             formatDate={formatDate}
           />
         ))}
       </div>
-    );
-  }
-
-  return (
-    <div className="file-list">
-      {renderSection(videos, 'video', 'Videos')}
-      {renderSection(audio, 'audio', 'Audio')}
-    </div>
+    </>
   );
 }
 
-function FileItem({ file, active, onSelect, onDelete, formatBytes, formatDate }) {
+function FileItem({ file, active, onSelect, onDelete, playlists, onAddToPlaylist, formatBytes, formatDate }) {
+  const [showPlaylistMenu, setShowPlaylistMenu] = useState(false);
+  const menuRef = useRef(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    if (!showPlaylistMenu) return;
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setShowPlaylistMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showPlaylistMenu]);
+
+  const compatiblePlaylists = playlists?.filter((p) => p.type === file.fileType) ?? [];
+
   return (
     <div
       className={`file-item ${active ? 'active' : ''}`}
@@ -102,21 +131,42 @@ function FileItem({ file, active, onSelect, onDelete, formatBytes, formatDate })
     >
       <span className="file-icon">{getIcon(file.originalFilename)}</span>
       <div className="file-info">
-        <div className="file-name" title={file.originalFilename}>
-          {file.originalFilename}
-        </div>
-        <div className="file-meta">
-          {formatBytes(file.size)} · {formatDate(file.uploadDate)}
-        </div>
+        <div className="file-name" title={file.originalFilename}>{file.originalFilename}</div>
+        <div className="file-meta">{formatBytes(file.size)} · {formatDate(file.uploadDate)}</div>
       </div>
       <div className="file-actions">
+        {onAddToPlaylist && (
+          <div className="playlist-menu-wrap" ref={menuRef}>
+            <button
+              className="btn btn-ghost icon-btn"
+              title="Add to playlist"
+              onClick={(e) => { e.stopPropagation(); setShowPlaylistMenu((v) => !v); }}
+            >
+              +
+            </button>
+            {showPlaylistMenu && (
+              <div className="playlist-dropdown" onClick={(e) => e.stopPropagation()}>
+                {compatiblePlaylists.length === 0 ? (
+                  <div className="playlist-dropdown-empty">No {file.fileType} playlists</div>
+                ) : (
+                  compatiblePlaylists.map((pl) => (
+                    <button
+                      key={pl.id}
+                      className="playlist-dropdown-item"
+                      onClick={() => { onAddToPlaylist(pl.id, file.id); setShowPlaylistMenu(false); }}
+                    >
+                      {pl.type === 'video' ? '🎬' : '🎵'} {pl.name}
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        )}
         <button
-          className="btn btn-danger"
+          className="btn btn-danger icon-btn"
           title="Delete file"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete(file);
-          }}
+          onClick={(e) => { e.stopPropagation(); onDelete(file); }}
         >
           🗑
         </button>
