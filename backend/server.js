@@ -16,7 +16,9 @@ const playlistsRouter = require('./routes/playlists');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors());
+if (process.env.NODE_ENV !== 'production') {
+  app.use(cors({ origin: 'http://localhost:5173' }));
+}
 app.use(express.json());
 
 // Serve uploaded files statically (fallback)
