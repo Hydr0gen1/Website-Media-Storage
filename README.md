@@ -4,22 +4,33 @@ A self-hosted media storage web application for uploading, organizing, and strea
 
 ## Features
 
+### Phase 1 — Core Media Library
 - Upload `.mov`, `.mp4`, `.mp3`, `.wav`, `.ogg` files (up to 2 GB each)
-- Drag-and-drop or file picker upload with progress tracking
-- Inline video and audio playback with range request support
-- File browser with video/audio sections, size, and date
-- Delete files with confirmation
-- Dark mode UI, responsive layout
-- PostgreSQL metadata storage, Docker volume for file persistence
+- Drag-and-drop or file picker upload with per-file progress bars
+- Inline video and audio streaming with range-request support (seekable)
+- File browser sorted by date, name, or size (asc/desc toggle)
+- Filter view by All / Video / Audio
+- Delete files with confirmation dialog
+- Dark mode UI (Claude orange accent), responsive layout
+- PostgreSQL metadata storage, Docker volumes for persistence
+
+### Phase 2 — Auth, Playlists & Auto-Sort
+- **User accounts** — register and sign in with username + password (bcrypt hashed)
+- **Session tokens** — 30-day sessions stored in the database, persisted in `localStorage`
+- **Playlists** — create audio or video playlists, add/remove files, reorder tracks
+- **Playlist playback** — queue view in the player with Prev/Next controls and auto-advance on track end
+- **Add to playlist** — per-file context menu to add directly to a compatible playlist
+- **Auto-sort** — server-side sort by name, date, or size via `GET /api/files?sort=&order=`
+- Playlists are user-specific; file browsing and playback work without an account
 
 ## Tech Stack
 
-| Layer    | Technology                     |
-|----------|--------------------------------|
-| Backend  | Node.js, Express, Multer, pg   |
-| Frontend | React 18, Vite, react-player   |
-| Database | PostgreSQL 16                  |
-| Deploy   | Docker, docker-compose         |
+| Layer    | Technology                              |
+|----------|-----------------------------------------|
+| Backend  | Node.js, Express, Multer, pg, bcrypt    |
+| Frontend | React 18, Vite, react-player, axios     |
+| Database | PostgreSQL 16                           |
+| Deploy   | Docker, docker-compose                  |
 
 ## Quick Start
 
@@ -471,13 +482,37 @@ df -h
 
 ## API Reference
 
-| Method   | Endpoint                  | Description               |
-|----------|---------------------------|---------------------------|
-| `POST`   | `/api/upload`             | Upload a file (multipart) |
-| `GET`    | `/api/files`              | List all files            |
-| `DELETE` | `/api/files/:id`          | Delete a file             |
-| `GET`    | `/api/files/:id/download` | Stream/download a file    |
-| `GET`    | `/health`                 | Health check              |
+### Files
+
+| Method   | Endpoint                  | Description                                          |
+|----------|---------------------------|------------------------------------------------------|
+| `POST`   | `/api/upload`             | Upload a file (multipart/form-data, field: `file`)   |
+| `GET`    | `/api/files`              | List files — accepts `?type=video\|audio&sort=date\|name\|size&order=asc\|desc` |
+| `DELETE` | `/api/files/:id`          | Delete a file and remove it from disk                |
+| `GET`    | `/api/files/:id/download` | Stream file (supports `Range` header for seeking)    |
+| `GET`    | `/health`                 | Health check                                         |
+
+### Auth
+
+| Method | Endpoint              | Description                                  |
+|--------|-----------------------|----------------------------------------------|
+| `POST` | `/api/auth/register`  | Create account `{ username, password }`      |
+| `POST` | `/api/auth/login`     | Sign in, returns `{ user, token }`           |
+| `POST` | `/api/auth/logout`    | Invalidate session token                     |
+| `GET`  | `/api/auth/me`        | Return current user (requires Bearer token)  |
+
+### Playlists (all require `Authorization: Bearer <token>`)
+
+| Method   | Endpoint                        | Description                              |
+|----------|---------------------------------|------------------------------------------|
+| `POST`   | `/api/playlists`                | Create playlist `{ name, type, description? }` |
+| `GET`    | `/api/playlists`                | List user's playlists (with item counts) |
+| `GET`    | `/api/playlists/:id`            | Get playlist with ordered file list      |
+| `PUT`    | `/api/playlists/:id`            | Rename / update description              |
+| `DELETE` | `/api/playlists/:id`            | Delete playlist (files are kept)         |
+| `POST`   | `/api/playlists/:id/items`      | Add file `{ fileId }`                    |
+| `DELETE` | `/api/playlists/:id/items/:fid` | Remove file from playlist                |
+| `PUT`    | `/api/playlists/:id/reorder`    | Reorder `{ orderedFileIds: [...] }`      |
 
 ## Local Development
 
@@ -504,23 +539,34 @@ npm run dev
 
 ```
 ├── backend/
-│   ├── server.js               # Express app entry point
-│   ├── db.js                   # PostgreSQL pool + schema init
-│   ├── routes/files.js         # Multer config + route definitions
+│   ├── server.js                    # Express entry point, route registration
+│   ├── db.js                        # PostgreSQL pool + auto-schema init
+│   ├── middleware/
+│   │   └── auth.js                  # optionalAuth / requireAuth middleware
+│   ├── routes/
+│   │   ├── files.js                 # Multer config + file routes
+│   │   ├── auth.js                  # Auth routes
+│   │   └── playlists.js             # Playlist routes (all require auth)
 │   ├── controllers/
-│   │   └── fileController.js   # Upload, list, delete, stream handlers
+│   │   ├── fileController.js        # Upload, list (sort/filter), delete, stream
+│   │   ├── authController.js        # Register, login, logout, me
+│   │   └── playlistController.js    # Playlist CRUD + item management
 │   └── .env.example
 ├── frontend/
 │   ├── src/
-│   │   ├── App.jsx             # Root component, state management
-│   │   ├── App.css             # Dark mode styles
+│   │   ├── App.jsx                  # Root component, all state management
+│   │   ├── App.css                  # Full design system (orange dark mode)
 │   │   └── components/
-│   │       ├── UploadZone.jsx  # Drag-and-drop upload with progress
-│   │       ├── FileList.jsx    # Browsable file list
-│   │       └── MediaPlayer.jsx # Video/audio player
+│   │       ├── UploadZone.jsx       # Drag-and-drop upload with progress
+│   │       ├── FileList.jsx         # File list with sort controls + playlist menu
+│   │       ├── MediaPlayer.jsx      # Video/audio player with playlist queue
+│   │       ├── AuthModal.jsx        # Login / register modal
+│   │       ├── PlaylistPanel.jsx    # Playlist list + create form
+│   │       └── PlaylistView.jsx     # Playlist detail, reorder, add files
 │   ├── vite.config.js
 │   └── index.html
-├── Dockerfile                  # Multi-stage build
-├── docker-compose.yml          # App + PostgreSQL services
+├── Dockerfile                       # Multi-stage build (frontend → backend/public)
+├── docker-compose.yml               # App + PostgreSQL + named volumes
+├── CLAUDE.md                        # Dev notes for Claude Code
 └── .dockerignore
 ```
