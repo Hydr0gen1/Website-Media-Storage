@@ -1,0 +1,7 @@
+**/node_modules
+backend/public
+backend/uploads
+backend/.env
+.env
+.git
+*.md
