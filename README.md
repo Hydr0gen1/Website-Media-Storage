@@ -65,6 +65,191 @@ To also remove data volumes:
 docker compose down -v
 ```
 
+## Hosting to the Internet
+
+### Hosting Options Overview
+
+| Option | Cost | Difficulty | Best for |
+|--------|------|------------|----------|
+| **Self-hosted** (own Linux machine) | Free after hardware | Medium | Full control, home labs |
+| **VPS** (Virtual Private Server) | $5–15/month | Medium | Reliable uptime, static IP included |
+| **Cloud Hosting** (AWS, GCP, Azure) | Variable | Higher | Scale-out workloads |
+
+---
+
+### Self-Hosted from Your Linux Machine
+
+**Prerequisites:**
+- Static public IP (or a dynamic DNS service like DuckDNS if your ISP assigns changing IPs)
+- Domain name (~$10–15/year from Namecheap, Cloudflare, Google Domains)
+- Router configured to forward ports 80 and 443 to your machine
+- Nginx installed on the host (outside Docker)
+
+**1. Install Nginx**
+
+```bash
+sudo apt update && sudo apt install nginx
+```
+
+**2. Create an Nginx reverse proxy config**
+
+Create `/etc/nginx/sites-available/media-storage`:
+
+```nginx
+server {
+    listen 80;
+    server_name yourdomain.com www.yourdomain.com;
+
+    location / {
+        proxy_pass http://localhost:3001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+**3. Enable the config and reload Nginx**
+
+```bash
+sudo ln -s /etc/nginx/sites-available/media-storage /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
+```
+
+**4. Get a free SSL certificate (Let's Encrypt)**
+
+```bash
+sudo apt install certbot python3-certbot-nginx
+sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
+```
+
+Certbot automatically configures Nginx for HTTPS and schedules renewal every 90 days.
+
+**5. Configure DNS**
+
+Log into your domain registrar and create two A records:
+
+```
+Type | Name | Value
+-----|------|------------------------
+A    | @    | your.public.ip.address
+A    | www  | your.public.ip.address
+```
+
+Find your public IP with: `curl icanhazip.com`
+
+DNS propagation typically takes a few minutes but can take up to 48 hours.
+
+**6. Open firewall ports**
+
+```bash
+sudo ufw allow 22/tcp   # SSH
+sudo ufw allow 80/tcp   # HTTP
+sudo ufw allow 443/tcp  # HTTPS
+sudo ufw enable
+```
+
+**7. Start the app**
+
+```bash
+cd Website-Media-Storage
+export DB_PASSWORD=your_strong_password
+docker compose up -d
+```
+
+Your app is now live at `https://yourdomain.com`.
+
+---
+
+### Using a VPS (More Reliable)
+
+If your home internet isn't stable or you want better uptime, a VPS gives you a static IP, no router configuration, and typically 99.9% uptime.
+
+Popular providers at $5–10/month: **DigitalOcean**, **Linode/Akamai**, **Vultr**, **AWS Lightsail**.
+
+```bash
+# 1. Create an Ubuntu 24.04 instance on your chosen provider
+# 2. SSH into it
+# 3. Install Docker:
+curl -fsSL https://get.docker.com | sh
+# 4. Clone this repo and follow the self-hosted steps 2–7 above
+```
+
+No router port-forwarding needed — your VPS has a public IP by default.
+
+---
+
+### Dynamic DNS (home setups with a changing IP)
+
+If your ISP assigns a dynamic IP, use a service like **DuckDNS** to keep your domain pointing at it automatically.
+
+```bash
+sudo apt install ddclient
+```
+
+Edit `/etc/ddclient/ddclient.conf`:
+
+```
+protocol=duckdns
+use=web
+server=www.duckdns.org
+login=your-token
+password=your-token
+yourdomain.duckdns.org
+```
+
+Then point your domain registrar's A record to the DuckDNS hostname via a CNAME, or let ddclient update the IP directly.
+
+---
+
+### Security Best Practices
+
+- **Always use HTTPS** — Let's Encrypt is free and automatic.
+- **Enable UFW** — only open ports you actually need.
+- **Use SSH keys**, not passwords; disable password login in `/etc/ssh/sshd_config`.
+- **Keep the system updated**: `sudo apt update && sudo apt upgrade`
+- **Monitor access logs**: `tail -f /var/log/nginx/access.log`
+- **Back up the database regularly**:
+  ```bash
+  docker exec media-storage-db-1 pg_dump -U postgres mediastore > backup.sql
+  ```
+- **Watch disk space** — uploads can grow large: `df -h`
+
+---
+
+### Monitoring & Maintenance
+
+```bash
+# Check container status
+docker compose ps
+
+# Stream logs
+docker compose logs -f app
+docker compose logs -f db
+
+# Restart after a config change
+docker compose down && docker compose up -d
+
+# Test SSL auto-renewal
+sudo certbot renew --dry-run
+```
+
+---
+
+### Troubleshooting
+
+| Issue | Solution |
+|-------|---------|
+| Domain doesn't resolve | Verify the A record points to your public IP; allow time for propagation |
+| HTTPS certificate error | Re-run `sudo certbot --nginx`; confirm the domain matches the cert |
+| App unreachable | Check `docker compose ps`; verify firewall with `sudo ufw status` |
+| Connection timeout | Confirm router port forwarding (80, 443 → your machine) |
+| SSL renewal failed | Run `sudo certbot renew --verbose`; ensure port 443 is publicly reachable |
+
+---
+
 ## Configuration
 
 | Variable      | Default      | Description                     |
