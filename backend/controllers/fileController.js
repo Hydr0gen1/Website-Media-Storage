@@ -2,6 +2,18 @@ const fs = require('fs');
 const path = require('path');
 const { pool } = require('../db');
 
+function formatFileRecord(f) {
+  return {
+    id: f.id,
+    filename: f.filename,
+    originalFilename: f.originalfilename,
+    fileType: f.filetype,
+    mimeType: f.mimetype,
+    size: f.size,
+    uploadDate: f.uploaddate,
+  };
+}
+
 const ALLOWED_EXTENSIONS = ['.mov', '.mp4', '.mp3', '.wav', '.ogg'];
 const MIME_TO_TYPE = {
   'video/quicktime': 'video',
@@ -57,16 +69,7 @@ async function uploadFile(req, res, next) {
       ]
     );
 
-    const file = result.rows[0];
-    res.status(201).json({
-      id: file.id,
-      filename: file.filename,
-      originalFilename: file.originalfilename,
-      fileType: file.filetype,
-      mimeType: file.mimetype,
-      size: file.size,
-      uploadDate: file.uploaddate,
-    });
+    res.status(201).json(formatFileRecord(result.rows[0]));
   } catch (err) {
     if (req.file) fs.unlink(req.file.path, () => {});
     next(err);
@@ -78,16 +81,7 @@ async function listFiles(req, res, next) {
     const result = await pool.query(
       'SELECT * FROM files ORDER BY uploadDate DESC'
     );
-    const files = result.rows.map((f) => ({
-      id: f.id,
-      filename: f.filename,
-      originalFilename: f.originalfilename,
-      fileType: f.filetype,
-      mimeType: f.mimetype,
-      size: f.size,
-      uploadDate: f.uploaddate,
-    }));
-    res.json(files);
+    res.json(result.rows.map(formatFileRecord));
   } catch (err) {
     next(err);
   }
@@ -106,9 +100,11 @@ async function deleteFile(req, res, next) {
 
     await pool.query('DELETE FROM files WHERE id = $1', [id]);
 
-    fs.unlink(file.filepath, (err) => {
-      if (err) console.warn(`Could not delete file from disk: ${file.filepath}`, err.message);
-    });
+    try {
+      await fs.promises.unlink(file.filepath);
+    } catch (err) {
+      console.warn(`Warning: Could not delete file from disk: ${file.filepath}`, err.message);
+    }
 
     res.json({ message: 'File deleted successfully' });
   } catch (err) {

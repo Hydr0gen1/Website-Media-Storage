@@ -35,7 +35,15 @@ cd Website-Media-Storage
 cp backend/.env.example backend/.env
 ```
 
-Edit `backend/.env` and set a strong `DB_PASSWORD`.
+**You must set `DB_PASSWORD`** — the server will refuse to start without it.
+
+```bash
+# Option A: export before running compose
+export DB_PASSWORD=your_strong_password
+
+# Option B: set it in backend/.env
+echo "DB_PASSWORD=your_strong_password" >> backend/.env
+```
 
 ### 2. Start all services
 
@@ -66,9 +74,9 @@ docker compose down -v
 | `DB_PORT`     | `5432`       | PostgreSQL port                 |
 | `DB_NAME`     | `mediastore` | Database name                   |
 | `DB_USER`     | `postgres`   | Database user                   |
-| `DB_PASSWORD` | `changeme`   | Database password (**change!**) |
+| `DB_PASSWORD` | **required** | Database password — no default  |
 
-Set `DB_PASSWORD` via `backend/.env` or as an environment variable before running `docker compose up`.
+`DB_PASSWORD` has no default and **must** be set via `backend/.env` or as an environment variable. The server will exit on startup if it is missing.
 
 ## API Reference
 
