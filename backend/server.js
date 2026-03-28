@@ -1,4 +1,10 @@
 require('dotenv').config();
+
+if (!process.env.DB_PASSWORD) {
+  console.error('ERROR: DB_PASSWORD environment variable is not set. Refusing to start.');
+  process.exit(1);
+}
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
