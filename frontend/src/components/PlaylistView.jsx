@@ -33,8 +33,9 @@ export default function PlaylistView({
         items: items.filter((i) => i.file.id !== fileId),
       };
       onPlaylistUpdated(updated);
-    } catch {
-      // silent — parent can show toast
+    } catch (err) {
+      const errorMsg = err.response?.data?.error || 'Failed to remove item from playlist';
+      console.error(errorMsg);
     }
   };
 
@@ -49,8 +50,9 @@ export default function PlaylistView({
     try {
       await axios.put(`${apiBase}/playlists/${playlist.id}/reorder`, { orderedFileIds }, { headers });
       onPlaylistUpdated({ ...playlist, items: newItems.map((item, pos) => ({ ...item, position: pos })) });
-    } catch {
-      // silent
+    } catch (err) {
+      const errorMsg = err.response?.data?.error || 'Failed to reorder playlist';
+      console.error(errorMsg);
     }
   };
 
@@ -61,8 +63,9 @@ export default function PlaylistView({
       await axios.post(`${apiBase}/playlists/${playlist.id}/items`, { fileId }, { headers });
       const { data } = await axios.get(`${apiBase}/playlists/${playlist.id}`, { headers });
       onPlaylistUpdated(data);
-    } catch {
-      // silent
+    } catch (err) {
+      const errorMsg = err.response?.data?.error || 'Failed to add file to playlist';
+      console.error(errorMsg);
     } finally {
       setAdding(false);
       setShowAddFiles(false);

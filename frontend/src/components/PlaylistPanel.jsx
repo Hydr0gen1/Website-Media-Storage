@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import axios from 'axios';
 
-export default function PlaylistPanel({ playlists, apiBase, authToken, onSelect, onCreated, onDeleted }) {
+export default function PlaylistPanel({ playlists, apiBase, authToken, onSelectPlaylist, onCreatePlaylist, onDeletePlaylist, onPlayPlaylist }) {
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState('');
   const [type, setType] = useState('video');
@@ -22,7 +22,7 @@ export default function PlaylistPanel({ playlists, apiBase, authToken, onSelect,
         { name, type, description: description || undefined },
         { headers }
       );
-      onCreated(data);
+      onCreatePlaylist(data);
       setName('');
       setType('video');
       setDescription('');
@@ -40,10 +40,14 @@ export default function PlaylistPanel({ playlists, apiBase, authToken, onSelect,
     setConfirmDelete(null);
     try {
       await axios.delete(`${apiBase}/playlists/${pl.id}`, { headers });
-      onDeleted(pl.id);
+      onDeletePlaylist(pl.id);
     } catch {
       // parent will show toast
     }
+  };
+
+  const handlePlay = (playlist, items) => {
+    onPlayPlaylist(playlist, items);
   };
 
   if (playlists.length === 0 && !showCreate) {
@@ -107,10 +111,10 @@ export default function PlaylistPanel({ playlists, apiBase, authToken, onSelect,
           <div
             key={pl.id}
             className="playlist-item"
-            onClick={() => onSelect(pl.id)}
+            onClick={() => onSelectPlaylist(pl.id)}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && onSelect(pl.id)}
+            onKeyDown={(e) => e.key === 'Enter' && onSelectPlaylist(pl.id)}
           >
             <span className="playlist-type-icon">{pl.type === 'video' ? '🎬' : '🎵'}</span>
             <div className="playlist-item-info">
