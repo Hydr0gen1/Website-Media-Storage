@@ -167,7 +167,7 @@ async function deleteFile(req, res, next) {
 async function downloadFile(req, res, next) {
   try {
     const { id } = req.params;
-    const result = await pool.query('SELECT * FROM files WHERE id = $1', [id]);
+    const result = await pool.query('SELECT * FROM files WHERE id = $1 AND userid = $2', [id, req.user.id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'File not found' });

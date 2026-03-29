@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import axios from 'axios';
 
 const CHUNK_SIZE = 20 * 1024 * 1024; // 20 MB
@@ -27,7 +27,10 @@ export default function ChunkedUploadZone({ apiBase, authToken, onUploadComplete
   const [uploads, setUploads] = useState([]);
   const inputRef = useRef(null);
 
-  const authHeaders = authToken ? { Authorization: `Bearer ${authToken}` } : {};
+  const authHeaders = useMemo(
+    () => (authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+    [authToken]
+  );
 
   const uploadFileInChunks = useCallback(
     async (file) => {
