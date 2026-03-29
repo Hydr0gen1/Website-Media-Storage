@@ -46,6 +46,8 @@ PostgreSQL lowercases all unquoted identifiers. Use `formatFileRecord()` / `form
 
 - **`App.jsx`** — Owns all application state: `files`, `currentUser`, `authToken`, `playlists`, `activeFile`, `activePlaylist`, `sidebarTab`, toasts. Passes callbacks down; no context or global store.
 - **`App.css`** — Single stylesheet for the whole app. CSS variables defined in `:root` — change colours there, not inline. Orange accent system (`--accent-primary: #ff9500`).
+- **`components/PlaylistView.jsx`** — Detail view for a single playlist. Receives `playlist` (full object with `.items[]`), `allFiles`, `apiBase`, `authToken`, `onBack`, `onPlay(playlist, items)`, `onPlaylistUpdated(updatedPlaylist)`. Makes its own axios calls for add/remove/reorder, then calls `onPlaylistUpdated` with the refreshed data.
+- **`components/MediaPlayer.jsx`** — Receives `file`, `playlist` (active playlist state), `apiBase`, `onNext`, `onPrev`, `onTrackEnd`, `onSelectTrack`, `onClose`, `formatBytes`, `formatDate`. Uses `onNext`/`onPrev` for playlist prev/next buttons.
 - Auth token stored in `localStorage` key `authToken`. On mount, App calls `GET /api/auth/me` to restore the session.
 - Axios is used directly (`import axios from 'axios'`); no wrapper. Auth header is built inline: `{ Authorization: \`Bearer ${authToken}\` }`.
 
