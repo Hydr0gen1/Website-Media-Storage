@@ -50,6 +50,16 @@ export default function PlaylistPanel({ playlists, apiBase, authToken, onSelectP
     onPlayPlaylist(playlist, items);
   };
 
+  const handlePlayClick = async (e, pl) => {
+    e.stopPropagation();
+    try {
+      const { data } = await axios.get(`${apiBase}/playlists/${pl.id}`, { headers });
+      handlePlay(data, data.items);
+    } catch {
+      // ignore errors
+    }
+  };
+
   if (playlists.length === 0 && !showCreate) {
     return (
       <div className="playlist-panel-empty">
@@ -123,6 +133,13 @@ export default function PlaylistPanel({ playlists, apiBase, authToken, onSelectP
                 {pl.itemCount ?? 0} {pl.itemCount === 1 ? 'file' : 'files'}
               </div>
             </div>
+            <button
+              className="btn btn-ghost icon-btn"
+              title="Play playlist"
+              onClick={(e) => handlePlayClick(e, pl)}
+            >
+              ▶
+            </button>
             <button
               className="btn btn-danger"
               title="Delete playlist"

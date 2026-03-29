@@ -9,6 +9,7 @@ export default function MediaPlayer({
   onPrev,
   onTrackEnd,
   onSelectTrack,
+  onClose,
   formatBytes,
   formatDate,
 }) {
@@ -24,16 +25,28 @@ export default function MediaPlayer({
     );
   }
 
-  const streamUrl = `${apiBase}/files/${file?.id || playlist?.items[0]?.file?.id}/download`;
-  const isVideo = file?.fileType === 'video' || playlist?.items?.[0]?.file?.fileType === 'video';
-  const isAudio = file?.fileType === 'audio' || playlist?.items?.[0]?.file?.fileType === 'audio';
-  const isImage = file?.fileType === 'image' || playlist?.items?.[0]?.file?.fileType === 'image';
+  const currentItem = playlist
+    ? playlist.items[playlist.currentIndex]
+    : null;
+  const activeFile = file ?? currentItem?.file;
+
+  const streamUrl = `${apiBase}/files/${activeFile?.id}/download`;
+  const isVideo = activeFile?.fileType === 'video';
+  const isAudio = activeFile?.fileType === 'audio';
+  const isImage = activeFile?.fileType === 'image';
 
   const hasPrev = playlist && playlist.currentIndex > 0;
   const hasNext = playlist && playlist.currentIndex < playlist.items.length - 1;
 
   return (
     <div className="player-content">
+      <button
+        className="btn btn-ghost player-close"
+        onClick={onClose}
+        title="Close player"
+      >
+        ✕
+      </button>
       {/* Now playing header */}
       <div className="player-now-playing">
         <span style={{ fontSize: '1.25rem' }}>{isVideo ? '🎬' : isAudio ? '🎵' : '🖼️'}</span>
@@ -44,20 +57,20 @@ export default function MediaPlayer({
             </div>
           )}
           {!playlist && <div className="now-playing-label">Now Playing</div>}
-          <div className="now-playing-name" title={file?.originalFilename || playlist?.items?.[0]?.file?.originalFilename}>
-            {file?.originalFilename || playlist?.items?.[0]?.file?.originalFilename}
+          <div className="now-playing-name" title={activeFile?.originalFilename}>
+            {activeFile?.originalFilename}
           </div>
         </div>
       </div>
 
       {/* Image viewer */}
-      {isImage && (
+      {isImage && activeFile && (
         <div className="player-image-container">
           {!imageError ? (
             <img
-              key={file?.id || playlist?.items[0]?.file?.id}
+              key={activeFile.id}
               src={streamUrl}
-              alt={file?.originalFilename || playlist?.items[0]?.file?.originalFilename}
+              alt={activeFile.originalFilename}
               className="player-image"
               onError={() => setImageError(true)}
             />
@@ -68,10 +81,10 @@ export default function MediaPlayer({
       )}
 
       {/* Video player */}
-      {isVideo && (
+      {isVideo && activeFile && (
         <div className="player-wrapper">
           <ReactPlayer
-            key={file?.id || playlist?.items[0]?.file?.id}
+            key={activeFile.id}
             url={streamUrl}
             controls
             width="100%"
@@ -91,11 +104,11 @@ export default function MediaPlayer({
       )}
 
       {/* Audio player */}
-      {isAudio && (
+      {isAudio && activeFile && (
         <div className="player-wrapper audio-player">
           <span className="audio-icon-large">🎵</span>
           <audio
-            key={file?.id || playlist?.items[0]?.file?.id}
+            key={activeFile.id}
             className="native-audio"
             controls
             preload="metadata"
@@ -123,13 +136,15 @@ export default function MediaPlayer({
       )}
 
       {/* File metadata */}
-      <div className="player-meta">
-        <span>{formatBytes(file?.size || playlist?.items[0]?.file?.size)}</span>
-        <span>·</span>
-        <span>{file?.mimeType || playlist?.items[0]?.file?.mimeType}</span>
-        <span>·</span>
-        <span>{formatDate(file?.uploadDate || playlist?.items[0]?.file?.uploadDate)}</span>
-      </div>
+      {(file || currentItem) && (
+        <div className="player-meta">
+          <span>{formatBytes(activeFile.size)}</span>
+          <span>·</span>
+          <span>{activeFile.mimeType}</span>
+          <span>·</span>
+          <span>{formatDate(activeFile.uploadDate)}</span>
+        </div>
+      )}
 
       {/* Playlist queue */}
       {playlist && playlist.items.length > 1 && (

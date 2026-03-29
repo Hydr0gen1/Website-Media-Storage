@@ -268,29 +268,39 @@ export default function App() {
       <main className="app-main">
         <aside className="sidebar">
           {sidebarTab === 'files' ? (
-            <FileList
-              files={files}
-              loading={loading}
-              typeFilter={typeFilter}
-              setTypeFilter={setTypeFilter}
-              sort={sort}
-              setSort={setSort}
-              onPlay={handlePlayFile}
-              onDelete={handleDeleteRequest}
-              onUploadComplete={handleUploadComplete}
-              apiBase={API_BASE}
-              authToken={authToken}
-              playlists={playlists}
-              onAddToPlaylist={(playlistId, fileId) => {
-                // This will be handled by the playlist view when active
-                if (selectedPlaylistId) {
-                  // Add to active playlist
-                  // Implementation would require backend call
-                }
-              }}
-              formatBytes={formatBytes}
-              formatDate={formatDate}
-            />
+            <>
+              <ChunkedUploadZone
+                apiBase={API_BASE}
+                authToken={authToken}
+                onUploadComplete={handleUploadComplete}
+                onError={(msg) => showToast(msg, 'error')}
+              />
+              <FileList
+                files={files}
+                loading={loading}
+                activeFile={activeFile}
+                onSelect={handlePlayFile}
+                onDelete={handleDeleteRequest}
+                sort={sort}
+                onSortChange={setSort}
+                playlists={playlists}
+                onAddToPlaylist={async (playlistId, fileId) => {
+                  try {
+                    await axios.post(
+                      `${API_BASE}/playlists/${playlistId}/items`,
+                      { fileId },
+                      { headers: authHeaders() }
+                    );
+                    showToast('Added to playlist');
+                    fetchPlaylists();
+                  } catch (err) {
+                    showToast(err.response?.data?.error || 'Failed to add to playlist', 'error');
+                  }
+                }}
+                formatBytes={formatBytes}
+                formatDate={formatDate}
+              />
+            </>
           ) : (
             <PlaylistPanel
               playlists={playlists}
@@ -332,6 +342,9 @@ export default function App() {
           apiBase={API_BASE}
           onNext={handleNextFile}
           onPrev={handlePrevFile}
+          onTrackEnd={handleNextFile}
+          onSelectTrack={null}
+          onClose={() => setActiveFile(null)}
           formatBytes={formatBytes}
           formatDate={formatDate}
         />
@@ -343,6 +356,17 @@ export default function App() {
           apiBase={API_BASE}
           onNext={() => setActivePlaylist((p) => ({ ...p, currentIndex: Math.min(p.currentIndex + 1, p.items.length - 1) }))}
           onPrev={() => setActivePlaylist((p) => ({ ...p, currentIndex: Math.max(p.currentIndex - 1, 0) }))}
+          onTrackEnd={() =>
+            setActivePlaylist((p) =>
+              p.currentIndex < p.items.length - 1
+                ? { ...p, currentIndex: p.currentIndex + 1 }
+                : p
+            )
+          }
+          onSelectTrack={(idx) =>
+            setActivePlaylist((p) => ({ ...p, currentIndex: idx }))
+          }
+          onClose={() => setActivePlaylist(null)}
           formatBytes={formatBytes}
           formatDate={formatDate}
         />
