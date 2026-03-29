@@ -18,9 +18,20 @@ pool.on('error', (err) => {
 async function initDB() {
   const client = await pool.connect();
   try {
+    // users must exist before files (files.userid FK)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(255) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     await client.query(`
       CREATE TABLE IF NOT EXISTS files (
         id SERIAL PRIMARY KEY,
+        userid INTEGER REFERENCES users(id) ON DELETE CASCADE,
         filename VARCHAR(255) UNIQUE NOT NULL,
         originalFilename VARCHAR(255) NOT NULL,
         fileType VARCHAR(50) NOT NULL,
@@ -31,13 +42,9 @@ async function initDB() {
       )
     `);
 
+    // Migration: add userid to existing files tables that predate this column
     await client.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        username VARCHAR(255) UNIQUE NOT NULL,
-        password_hash VARCHAR(255) NOT NULL,
-        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
+      ALTER TABLE files ADD COLUMN IF NOT EXISTS userid INTEGER REFERENCES users(id) ON DELETE CASCADE
     `);
 
     await client.query(`

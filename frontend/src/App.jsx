@@ -98,17 +98,27 @@ export default function App() {
 
   // ── Fetch files ───────────────────────────────────────────────────────────
   const fetchFiles = useCallback(async () => {
+    if (!authToken) { setLoading(false); return; }
     try {
       const params = { sort: sort.field, order: sort.order };
       if (typeFilter !== 'all') params.type = typeFilter;
-      const { data } = await axios.get(`${API_BASE}/files`, { params });
+      const { data } = await axios.get(`${API_BASE}/files`, {
+        params,
+        headers: authHeaders(),
+      });
       setFiles(data);
-    } catch {
-      showToast('Failed to load files', 'error');
+    } catch (err) {
+      if (err.response?.status === 401) {
+        localStorage.removeItem('authToken');
+        setAuthToken(null);
+        setCurrentUser(null);
+      } else {
+        showToast('Failed to load files', 'error');
+      }
     } finally {
       setLoading(false);
     }
-  }, [sort, typeFilter, showToast]);
+  }, [sort, typeFilter, authToken, authHeaders, showToast]);
 
   useEffect(() => { fetchFiles(); }, [fetchFiles]);
 
@@ -148,7 +158,7 @@ export default function App() {
     const file = confirmDelete;
     setConfirmDelete(null);
     try {
-      await axios.delete(`${API_BASE}/files/${file.id}`);
+      await axios.delete(`${API_BASE}/files/${file.id}`, { headers: authHeaders() });
       setFiles((prev) => prev.filter((f) => f.id !== file.id));
       if (activeFile?.id === file.id) { setActiveFile(null); setActivePlaylist(null); }
       showToast(`"${file.originalFilename}" deleted`);
@@ -295,13 +305,18 @@ export default function App() {
               {/* Type filter only on Files tab */}
               {sidebarTab === 'files' && (
                 <div style={{ display: 'flex', gap: '0.375rem' }}>
-                  {['all', 'video', 'audio'].map((f) => (
+                  {[
+                    { key: 'all', label: 'All' },
+                    { key: 'video', label: '🎬' },
+                    { key: 'audio', label: '🎵' },
+                    { key: 'image', label: '🖼️' },
+                  ].map(({ key, label }) => (
                     <button
-                      key={f}
-                      className={`filter-tab ${typeFilter === f ? 'active' : ''}`}
-                      onClick={() => setTypeFilter(f)}
+                      key={key}
+                      className={`filter-tab ${typeFilter === key ? 'active' : ''}`}
+                      onClick={() => setTypeFilter(key)}
                     >
-                      {f === 'all' ? 'All' : f === 'video' ? '🎬' : '🎵'}
+                      {label}
                     </button>
                   ))}
                 </div>

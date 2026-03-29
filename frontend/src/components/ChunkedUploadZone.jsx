@@ -2,14 +2,23 @@ import { useState, useRef, useCallback } from 'react';
 import axios from 'axios';
 
 const CHUNK_SIZE = 20 * 1024 * 1024; // 20 MB
-const ALLOWED_EXTENSIONS = ['.mov', '.mp4', '.mp3', '.wav', '.ogg'];
+const ALLOWED_EXTENSIONS = [
+  // Video
+  '.mov', '.mp4', '.webm', '.avi', '.mkv',
+  // Audio
+  '.mp3', '.wav', '.ogg', '.flac', '.aac', '.m4a',
+  // Image
+  '.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp', '.heic', '.heif',
+];
 
 function getFileType(mimeType, filename) {
   if (mimeType.startsWith('video/')) return 'video';
   if (mimeType.startsWith('audio/')) return 'audio';
+  if (mimeType.startsWith('image/')) return 'image';
   const ext = '.' + filename.split('.').pop().toLowerCase();
-  if (['.mp4', '.mov'].includes(ext)) return 'video';
-  if (['.mp3', '.wav', '.ogg'].includes(ext)) return 'audio';
+  if (['.mp4', '.mov', '.webm', '.avi', '.mkv'].includes(ext)) return 'video';
+  if (['.mp3', '.wav', '.ogg', '.flac', '.aac', '.m4a'].includes(ext)) return 'audio';
+  if (['.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp', '.heic', '.heif'].includes(ext)) return 'image';
   return 'unknown';
 }
 
@@ -128,7 +137,7 @@ export default function ChunkedUploadZone({ apiBase, authToken, onUploadComplete
       >
         <span className="drop-icon">{dragOver ? '📂' : '⬆️'}</span>
         <p className="drop-text">{dragOver ? 'Drop to upload' : 'Click or drag files here'}</p>
-        <p className="drop-subtext">Videos and audio up to 2 GB</p>
+        <p className="drop-subtext">Videos, audio, and images up to 2 GB</p>
         <div className="file-types">
           {ALLOWED_EXTENSIONS.map((ext) => (
             <span key={ext} className="file-type-badge">{ext}</span>

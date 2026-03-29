@@ -4,12 +4,10 @@ const path = require('path');
 const fs = require('fs');
 const rateLimit = require('express-rate-limit');
 const { optionalAuth, requireAuth } = require('../middleware/auth');
-const { uploadFile, listFiles, deleteFile, downloadFile } = require('../controllers/fileController');
+const { uploadFile, listFiles, deleteFile, downloadFile, ALLOWED_EXTENSIONS } = require('../controllers/fileController');
 const { uploadChunk, finalizeChunkedUpload, getUploadStatus } = require('../controllers/chunkController');
 
 const router = express.Router();
-
-const ALLOWED_EXTENSIONS = ['.mov', '.mp4', '.mp3', '.wav', '.ogg'];
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -63,7 +61,7 @@ router.post('/upload', uploadLimiter, optionalAuth, requireAuth, upload.single('
 router.post('/upload-chunk', uploadLimiter, optionalAuth, requireAuth, uploadChunkMiddleware.single('chunk'), uploadChunk);
 router.post('/upload-finalize', uploadLimiter, optionalAuth, requireAuth, finalizeChunkedUpload);
 router.get('/upload-status/:uploadId', optionalAuth, requireAuth, getUploadStatus);
-router.get('/files', listFiles);
+router.get('/files', optionalAuth, requireAuth, listFiles);
 router.delete('/files/:id', optionalAuth, requireAuth, deleteFile);
 router.get('/files/:id/download', downloadFile);
 

@@ -158,10 +158,10 @@ async function finalizeChunkedUpload(req, res, next) {
     const fileType = getFileType(resolvedMime, resolvedFilename);
 
     const result = await pool.query(
-      `INSERT INTO files (filename, originalFilename, fileType, mimeType, size, filePath)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO files (userid, filename, originalFilename, fileType, mimeType, size, filePath)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [finalFilename, resolvedFilename, fileType, resolvedMime, fileStats.size, finalPath]
+      [req.user.id, finalFilename, resolvedFilename, fileType, resolvedMime, fileStats.size, finalPath]
     );
 
     uploadSessions.delete(uploadId);
