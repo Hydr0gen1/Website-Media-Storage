@@ -31,7 +31,7 @@ async function initDB() {
     await client.query(`
       CREATE TABLE IF NOT EXISTS files (
         id SERIAL PRIMARY KEY,
-        userid INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         filename VARCHAR(255) UNIQUE NOT NULL,
         original_filename VARCHAR(255) NOT NULL,
         file_type VARCHAR(50) NOT NULL,
@@ -77,10 +77,10 @@ async function initDB() {
     `);
 
     // Add indexes for performance
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_files_userid ON files(userid)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_files_userid ON files(user_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_sessions_userid ON sessions(userid)`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_playlists_userid ON playlists(userid)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_sessions_userid ON sessions(user_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_playlists_userid ON playlists(user_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_playlistitems_playlistid ON playlist_items(playlist_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_playlistitems_fileid ON playlist_items(file_id)`);
 

@@ -1,6 +1,30 @@
 import { useState, useRef, useEffect } from 'react';
 
-const FILE_ICONS = { mp4: '🎬', mov: '🎬', mp3: '🎵', wav: '🎵', ogg: '🎵' };
+const FILE_ICONS = {
+  mp4: '🎬',
+  mov: '🎬',
+  webm: '🎬',
+  avi: '🎬',
+  mkv: '🎬',
+  mp3: '🎵',
+  wav: '🎵',
+  ogg: '🎵',
+  flac: '🎵',
+  aac: '🎵',
+  m4a: '🎵',
+  jpg: '🖼️',
+  jpeg: '🖼️',
+  png: '🖼️',
+  gif: '🖼️',
+  svg: '🖼️',
+  webp: '🖼️',
+  heic: '🖼️',
+  heif: '🖼️',
+  avif: '🖼️',
+  bmp: '🖼️',
+  tiff: '🖼️',
+  ico: '🖼️',
+};
 
 function getIcon(filename) {
   const ext = filename.split('.').pop().toLowerCase();

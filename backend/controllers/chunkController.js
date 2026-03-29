@@ -30,11 +30,11 @@ function formatFileRecord(f) {
   return {
     id: f.id,
     filename: f.filename,
-    originalFilename: f.originalfilename,
-    fileType: f.filetype,
-    mimeType: f.mimetype,
+    originalFilename: f.original_filename,
+    fileType: f.file_type,
+    mimeType: f.mime_type,
     size: f.size,
-    uploadDate: f.uploaddate,
+    uploadDate: f.upload_date,
   };
 }
 
@@ -92,7 +92,7 @@ async function uploadChunk(req, res, next) {
     }
 
     // Validate uploadId format to prevent path traversal
-    if (!uploadId || !/^[\w.-]+$/.test(uploadId)) {
+    if (!uploadId || !/^[-\w.]+$/.test(uploadId)) {
       if (req.file) fs.unlink(req.file.path, () => {});
       return res.status(400).json({ error: 'Invalid uploadId format' });
     }
@@ -151,7 +151,7 @@ async function finalizeChunkedUpload(req, res, next) {
   const { uploadId, originalFilename, mimeType } = req.body;
 
   // Validate uploadId format to prevent path traversal
-  if (!uploadId || !/^[\w.-]+$/.test(uploadId)) {
+  if (!uploadId || !/^[-\w.]+$/.test(uploadId)) {
     return res.status(400).json({ error: 'Invalid uploadId format' });
   }
 
@@ -216,7 +216,7 @@ async function finalizeChunkedUpload(req, res, next) {
     }
 
     const result = await pool.query(
-      `INSERT INTO files (userid, filename, originalFilename, fileType, mimeType, size, filePath)
+      `INSERT INTO files (user_id, filename, original_filename, file_type, mime_type, size, file_path)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
       [req.user.id, finalFilename, resolvedFilename, fileType, resolvedMime, fileStats.size, finalPath]
@@ -246,7 +246,7 @@ async function getUploadStatus(req, res, next) {
     const { uploadId } = req.params;
 
     // Validate uploadId format to prevent path traversal
-    if (!uploadId || !/^[\w.-]+$/.test(uploadId)) {
+    if (!uploadId || !/^[-\w.]+$/.test(uploadId)) {
       return res.status(400).json({ error: 'Invalid uploadId format' });
     }
 

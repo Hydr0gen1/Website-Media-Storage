@@ -123,13 +123,13 @@ export default function MediaPlayer({
       {/* Playlist prev/next controls */}
       {playlist && (
         <div className="player-playlist-controls">
-          <button className="btn btn-ghost" disabled={!hasPrev} onClick={onPrev}>
+          <button className="btn btn-ghost" disabled={!hasPrev} onClick={() => onSelectTrack?.(playlist.currentIndex - 1)}>
             ⏮ Prev
           </button>
           <span className="player-track-indicator">
             {playlist.currentIndex + 1} / {playlist.items.length}
           </span>
-          <button className="btn btn-ghost" disabled={!hasNext} onClick={onNext}>
+          <button className="btn btn-ghost" disabled={!hasNext} onClick={() => onSelectTrack?.(playlist.currentIndex + 1)}>
             Next ⏭
           </button>
         </div>
@@ -154,10 +154,10 @@ export default function MediaPlayer({
             <div
               key={item.file.id}
               className={`queue-item ${idx === playlist.currentIndex ? 'active' : ''}`}
-              onClick={() => onSelectTrack(idx)}
+              onClick={() => onSelectTrack?.(idx)}
               role="button"
               tabIndex={0}
-              onKeyDown={(e) => e.key === 'Enter' && onSelectTrack(idx)}
+              onKeyDown={(e) => e.key === 'Enter' && onSelectTrack?.(idx)}
             >
               <span className="queue-num">{idx + 1}</span>
               <span className="queue-name">{item.file.originalFilename}</span>
