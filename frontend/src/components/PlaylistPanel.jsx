@@ -155,7 +155,7 @@ export default function PlaylistPanel({ playlists, apiBase, authToken, onSelectP
         <div className="overlay" onClick={() => setConfirmDelete(null)}>
           <div className="dialog" onClick={(e) => e.stopPropagation()}>
             <h3>Delete playlist?</h3>
-            <p>"{confirmDelete.name}" and all its items will be removed. Files are not deleted.</p>
+            <p>&quot;{confirmDelete.name}&quot; and all its items will be removed. Files are not deleted.</p>
             <div className="dialog-actions">
               <button className="btn btn-ghost" onClick={() => setConfirmDelete(null)}>Cancel</button>
               <button className="btn-confirm-delete" onClick={handleDelete}>Delete</button>

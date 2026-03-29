@@ -27,7 +27,7 @@ export default function App() {
   // ── Files ────────────────────────────────────────────────────────────
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [typeFilter, setTypeFilter] = useState('all');
+  const [typeFilter] = useState('all');
   const [sort, setSort] = useState({ field: 'date', order: 'desc' });
   const [activeFile, setActiveFile] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -384,7 +384,7 @@ export default function App() {
         <div className="modal-overlay" onClick={() => setConfirmDelete(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h3>Delete File?</h3>
-            <p>Are you sure you want to delete "{confirmDelete.originalFilename}"?</p>
+            <p>Are you sure you want to delete &quot;{confirmDelete.originalFilename}&quot;?</p>
             <div className="modal-actions">
               <button className="btn btn-danger" onClick={handleDeleteConfirm}>
                 Delete

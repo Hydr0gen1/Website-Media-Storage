@@ -123,13 +123,13 @@ export default function MediaPlayer({
       {/* Playlist prev/next controls */}
       {playlist && (
         <div className="player-playlist-controls">
-          <button className="btn btn-ghost" disabled={!hasPrev} onClick={() => onSelectTrack?.(playlist.currentIndex - 1)}>
+          <button className="btn btn-ghost" disabled={!hasPrev} onClick={onPrev}>
             ⏮ Prev
           </button>
           <span className="player-track-indicator">
             {playlist.currentIndex + 1} / {playlist.items.length}
           </span>
-          <button className="btn btn-ghost" disabled={!hasNext} onClick={() => onSelectTrack?.(playlist.currentIndex + 1)}>
+          <button className="btn btn-ghost" disabled={!hasNext} onClick={onNext}>
             Next ⏭
           </button>
         </div>
