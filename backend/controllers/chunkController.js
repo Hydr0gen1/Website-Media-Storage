@@ -91,6 +91,12 @@ async function uploadChunk(req, res, next) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    // Validate uploadId format to prevent path traversal
+    if (!uploadId || !/^[\w.-]+$/.test(uploadId)) {
+      if (req.file) fs.unlink(req.file.path, () => {});
+      return res.status(400).json({ error: 'Invalid uploadId format' });
+    }
+
     const idx = parseInt(chunkIndex, 10);
     const total = parseInt(totalChunks, 10);
 
@@ -143,6 +149,11 @@ async function uploadChunk(req, res, next) {
 
 async function finalizeChunkedUpload(req, res, next) {
   const { uploadId, originalFilename, mimeType } = req.body;
+
+  // Validate uploadId format to prevent path traversal
+  if (!uploadId || !/^[\w.-]+$/.test(uploadId)) {
+    return res.status(400).json({ error: 'Invalid uploadId format' });
+  }
 
   let finalPath;
   try {
@@ -233,6 +244,11 @@ async function finalizeChunkedUpload(req, res, next) {
 async function getUploadStatus(req, res, next) {
   try {
     const { uploadId } = req.params;
+
+    // Validate uploadId format to prevent path traversal
+    if (!uploadId || !/^[\w.-]+$/.test(uploadId)) {
+      return res.status(400).json({ error: 'Invalid uploadId format' });
+    }
 
     if (!uploadSessions.has(uploadId)) {
       return res.status(404).json({ error: 'Upload session not found' });

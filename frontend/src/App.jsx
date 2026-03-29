@@ -24,7 +24,7 @@ function formatDate(dateStr) {
 }
 
 export default function App() {
-  // ── Files ────────────────────────────────────────────────────────────────
+  // ── Files ────────────────────────────────────────────────────────────
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState('all');
@@ -136,18 +136,18 @@ export default function App() {
   useEffect(() => { fetchFiles(); }, [fetchFiles]);
 
   // ── Fetch playlists when logged in ────────────────────────────────────────
-  const fetchPlaylists = useCallback(async (token) => {
-    if (!token) return;
+  const fetchPlaylists = useCallback(async () => {
+    if (!authToken) return;
     try {
       const { data } = await axios.get(`${API_BASE}/playlists`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: authHeaders(),
       });
       setPlaylists(data);
     } catch { /* ignore */ }
-  }, []);
+  }, [authToken, authHeaders]);
 
   useEffect(() => {
-    if (authToken) fetchPlaylists(authToken);
+    if (authToken) fetchPlaylists();
   }, [authToken, fetchPlaylists]);
 
   // ── Fetch playlist detail ─────────────────────────────────────────────────
@@ -193,265 +193,185 @@ export default function App() {
     showToast('Playlist deleted');
   }, [selectedPlaylistId, activePlaylist, showToast]);
 
-  const handlePlaylistUpdated = useCallback((updated) => {
-    setPlaylistDetail(updated);
-    setPlaylists((prev) => prev.map((p) =>
-      p.id === updated.id ? { ...p, itemCount: updated.items?.length ?? p.itemCount } : p
-    ));
-    if (activePlaylist?.playlist?.id === updated.id) {
-      setActivePlaylist((ap) => ap ? { ...ap, items: updated.items } : ap);
-    }
-  }, [activePlaylist]);
-
-  const handleAddToPlaylist = useCallback(async (playlistId, fileId) => {
-    try {
-      await axios.post(`${API_BASE}/playlists/${playlistId}/items`, { fileId }, { headers: authHeaders() });
-      setPlaylists((prev) => prev.map((p) =>
-        p.id === playlistId ? { ...p, itemCount: (p.itemCount ?? 0) + 1 } : p
-      ));
-      showToast('Added to playlist');
-    } catch (err) {
-      showToast(err.response?.data?.error || 'Failed to add to playlist', 'error');
-    }
-  }, [authHeaders, showToast]);
-
-  const handlePlayPlaylist = useCallback((playlist, items) => {
-    if (!items.length) return;
-    setActivePlaylist({ playlist, items, currentIndex: 0 });
-    setActiveFile(items[0].file);
+  const handlePlaylistUpdated = useCallback((updatedPlaylist) => {
+    setPlaylistDetail(updatedPlaylist);
+    setPlaylists((prev) => prev.map((p) => (p.id === updatedPlaylist.id ? updatedPlaylist : p)));
   }, []);
 
-  // ── Playlist player controls ───────────────────────────────────────────────
-  const handleNextTrack = useCallback(() => {
-    if (!activePlaylist) return;
-    const next = activePlaylist.currentIndex + 1;
-    if (next >= activePlaylist.items.length) return;
-    setActivePlaylist((ap) => ({ ...ap, currentIndex: next }));
-    setActiveFile(activePlaylist.items[next].file);
-  }, [activePlaylist]);
+  const handlePlayPlaylist = useCallback((playlist, items) => {
+    setActivePlaylist({ playlist, items, currentIndex: 0 });
+    setSidebarTab('files');
+  }, []);
 
-  const handlePrevTrack = useCallback(() => {
-    if (!activePlaylist) return;
-    const prev = activePlaylist.currentIndex - 1;
-    if (prev < 0) return;
-    setActivePlaylist((ap) => ({ ...ap, currentIndex: prev }));
-    setActiveFile(activePlaylist.items[prev].file);
-  }, [activePlaylist]);
-
-  const handleTrackEnd = useCallback(() => {
-    if (!activePlaylist) return;
-    const next = activePlaylist.currentIndex + 1;
-    if (next < activePlaylist.items.length) {
-      setActivePlaylist((ap) => ({ ...ap, currentIndex: next }));
-      setActiveFile(activePlaylist.items[next].file);
-    }
-  }, [activePlaylist]);
-
-  const handleSelectTrack = useCallback((index) => {
-    if (!activePlaylist) return;
-    setActivePlaylist((ap) => ({ ...ap, currentIndex: index }));
-    setActiveFile(activePlaylist.items[index].file);
-  }, [activePlaylist]);
-
-  // ── Derived state ─────────────────────────────────────────────────────────
-  // When user selects a file directly (not via playlist), clear playlist context
-  const handleSelectFile = useCallback((file) => {
+  // ── Player ────────────────────────────────────────────────────────────────
+  const handlePlayFile = useCallback((file) => {
     setActiveFile(file);
     setActivePlaylist(null);
   }, []);
 
-  const displayedFiles = files; // already filtered/sorted by server
+  const handleNextFile = useCallback(() => {
+    if (!activeFile) return;
+    const idx = files.findIndex((f) => f.id === activeFile.id);
+    if (idx >= 0 && idx < files.length - 1) {
+      setActiveFile(files[idx + 1]);
+    }
+  }, [activeFile, files]);
 
+  const handlePrevFile = useCallback(() => {
+    if (!activeFile) return;
+    const idx = files.findIndex((f) => f.id === activeFile.id);
+    if (idx > 0) {
+      setActiveFile(files[idx - 1]);
+    }
+  }, [activeFile, files]);
+
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="app">
-      {/* ── Header ── */}
       <header className="app-header">
-        <span className="header-icon">🎬</span>
-        <h1>Media Storage</h1>
-        <div className="header-spacer" />
-        {currentUser ? (
-          <div className="header-auth">
-            <span className="header-username">👤 {currentUser.username}</span>
-            <button className="btn btn-ghost header-auth-btn" onClick={handleLogout}>Sign Out</button>
-          </div>
-        ) : (
-          <button className="btn btn-ghost header-auth-btn" onClick={() => setShowAuth(true)}>
-            Sign In
+        <div className="logo">
+          <span className="logo-icon">🎬</span>
+          <span className="logo-text">MediaStore</span>
+        </div>
+        <nav className="nav-tabs">
+          <button
+            className={sidebarTab === 'files' ? 'active' : ''}
+            onClick={() => setSidebarTab('files')}
+          >
+            📁 Files
           </button>
-        )}
+          <button
+            className={sidebarTab === 'playlists' ? 'active' : ''}
+            onClick={() => setSidebarTab('playlists')}
+          >
+            📋 Playlists
+          </button>
+        </nav>
+        <div className="user-actions">
+          {currentUser ? (
+            <button className="btn btn-ghost" onClick={handleLogout}>
+              {currentUser.username} (Logout)
+            </button>
+          ) : (
+            <button className="btn btn-primary" onClick={() => setShowAuth(true)}>
+              Login
+            </button>
+          )}
+        </div>
       </header>
 
       <main className="app-main">
-        {/* ── Sidebar ── */}
         <aside className="sidebar">
-          {/* Upload card — always visible */}
-          <div className="card">
-            <div className="card-header">
-              <span className="card-title">Upload</span>
-            </div>
-            <ChunkedUploadZone
+          {sidebarTab === 'files' ? (
+            <FileList
+              files={files}
+              loading={loading}
+              typeFilter={typeFilter}
+              setTypeFilter={setTypeFilter}
+              sort={sort}
+              setSort={setSort}
+              onPlay={handlePlayFile}
+              onDelete={handleDeleteRequest}
+              onUploadComplete={handleUploadComplete}
               apiBase={API_BASE}
               authToken={authToken}
-              onUploadComplete={handleUploadComplete}
-              onError={(msg) => showToast(msg, 'error')}
             />
-          </div>
-
-          {/* Tabbed Files / Playlists card */}
-          <div className="card">
-            <div className="card-header">
-              <div className="sidebar-tabs">
-                <button
-                  className={`sidebar-tab ${sidebarTab === 'files' ? 'active' : ''}`}
-                  onClick={() => setSidebarTab('files')}
-                >
-                  Files <span className="tab-count">({files.length})</span>
-                </button>
-                <button
-                  className={`sidebar-tab ${sidebarTab === 'playlists' ? 'active' : ''}`}
-                  onClick={() => { setSidebarTab('playlists'); if (!currentUser) setShowAuth(true); }}
-                >
-                  Playlists {currentUser && <span className="tab-count">({playlists.length})</span>}
-                </button>
-              </div>
-
-              {/* Type filter only on Files tab */}
-              {sidebarTab === 'files' && (
-                <div style={{ display: 'flex', gap: '0.375rem' }}>
-                  {[
-                    { key: 'all', label: 'All' },
-                    { key: 'video', label: '🎬' },
-                    { key: 'audio', label: '🎵' },
-                    { key: 'image', label: '🖼️' },
-                  ].map(({ key, label }) => (
-                    <button
-                      key={key}
-                      className={`filter-tab ${typeFilter === key ? 'active' : ''}`}
-                      onClick={() => setTypeFilter(key)}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Files tab content */}
-            {sidebarTab === 'files' && (
-              <FileList
-                files={displayedFiles}
-                activeFile={activeFile}
-                loading={loading}
-                sort={sort}
-                onSortChange={setSort}
-                onSelect={handleSelectFile}
-                onDelete={handleDeleteRequest}
-                playlists={currentUser ? playlists : null}
-                onAddToPlaylist={currentUser ? handleAddToPlaylist : null}
-                formatBytes={formatBytes}
-                formatDate={formatDate}
-              />
-            )}
-
-            {/* Playlists tab content */}
-            {sidebarTab === 'playlists' && currentUser && (
-              selectedPlaylistId && playlistDetail ? (
-                <PlaylistView
-                  playlist={playlistDetail}
-                  allFiles={files}
-                  apiBase={API_BASE}
-                  authToken={authToken}
-                  onBack={() => { setSelectedPlaylistId(null); setPlaylistDetail(null); }}
-                  onPlay={handlePlayPlaylist}
-                  onPlaylistUpdated={handlePlaylistUpdated}
-                />
-              ) : (
-                <PlaylistPanel
-                  playlists={playlists}
-                  apiBase={API_BASE}
-                  authToken={authToken}
-                  onSelect={(id) => setSelectedPlaylistId(id)}
-                  onCreated={handlePlaylistCreated}
-                  onDeleted={handlePlaylistDeleted}
-                />
-              )
-            )}
-
-            {/* Playlists tab — not logged in prompt */}
-            {sidebarTab === 'playlists' && !currentUser && (
-              <div className="file-list-empty">
-                <span className="empty-icon" style={{ fontSize: '2rem', display: 'block', marginBottom: '0.5rem', opacity: 0.4 }}>🔒</span>
-                Sign in to create and manage playlists.
-              </div>
-            )}
-          </div>
+          ) : (
+            <PlaylistPanel
+              playlists={playlists}
+              selectedPlaylistId={selectedPlaylistId}
+              onSelectPlaylist={setSelectedPlaylistId}
+              onCreatePlaylist={handlePlaylistCreated}
+              onDeletePlaylist={handlePlaylistDeleted}
+              onPlayPlaylist={handlePlayPlaylist}
+              apiBase={API_BASE}
+              authToken={authToken}
+            />
+          )}
         </aside>
 
-        {/* ── Player ── */}
         <section className="content">
-          <div className="card player-card">
-            <div className="card-header">
-              <span className="card-title">
-                {activePlaylist ? `▶ ${activePlaylist.playlist.name}` : 'Player'}
-              </span>
-              {activePlaylist && (
-                <button className="btn btn-ghost" style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
-                  onClick={() => { setActivePlaylist(null); }}>
-                  ✕ Clear queue
-                </button>
-              )}
-            </div>
-            <MediaPlayer
-              file={activeFile}
+          {selectedPlaylistId && playlistDetail ? (
+            <PlaylistView
+              playlist={playlistDetail}
+              allFiles={files}
               apiBase={API_BASE}
-              playlist={activePlaylist}
-              onNext={handleNextTrack}
-              onPrev={handlePrevTrack}
-              onTrackEnd={handleTrackEnd}
-              onSelectTrack={handleSelectTrack}
-              formatBytes={formatBytes}
-              formatDate={formatDate}
+              authToken={authToken}
+              onBack={() => setSelectedPlaylistId(null)}
+              onPlay={handlePlayPlaylist}
+              onPlaylistUpdated={handlePlaylistUpdated}
             />
-          </div>
+          ) : (
+            <FileList
+              files={files}
+              loading={loading}
+              typeFilter={typeFilter}
+              setTypeFilter={setTypeFilter}
+              sort={sort}
+              setSort={setSort}
+              onPlay={handlePlayFile}
+              onDelete={handleDeleteRequest}
+              onUploadComplete={handleUploadComplete}
+              apiBase={API_BASE}
+              authToken={authToken}
+            />
+          )}
         </section>
       </main>
 
-      {/* ── Toasts ── */}
-      <div className="toast-container">
-        {toasts.map((t) => (
-          <div key={t.id} className={`toast toast-${t.type}`} role="alert">
-            <span className="toast-content">{t.message}</span>
-            <button
-              className="toast-dismiss"
-              onClick={() => dismissToast(t.id)}
-              aria-label="Dismiss"
-            >✕</button>
-          </div>
-        ))}
-      </div>
+      {activeFile && (
+        <MediaPlayer
+          file={activeFile}
+          onClose={() => setActiveFile(null)}
+          onNext={handleNextFile}
+          onPrev={handlePrevFile}
+        />
+      )}
 
-      {/* ── Delete confirmation ── */}
+      {activePlaylist && (
+        <MediaPlayer
+          playlist={activePlaylist.playlist}
+          items={activePlaylist.items}
+          currentIndex={activePlaylist.currentIndex}
+          onClose={() => setActivePlaylist(null)}
+          onNext={() => setActivePlaylist((p) => ({ ...p, currentIndex: Math.min(p.currentIndex + 1, p.items.length - 1) }))}
+          onPrev={() => setActivePlaylist((p) => ({ ...p, currentIndex: Math.max(p.currentIndex - 1, 0) }))}
+        />
+      )}
+
+      {showAuth && (
+        <AuthModal
+          onLogin={handleLogin}
+          onClose={() => setShowAuth(false)}
+          apiBase={API_BASE}
+        />
+      )}
+
       {confirmDelete && (
-        <div className="overlay" onClick={() => setConfirmDelete(null)}>
-          <div className="dialog" onClick={(e) => e.stopPropagation()}>
-            <h3>Delete file?</h3>
-            <p>"{confirmDelete.originalFilename}" will be permanently removed. This cannot be undone.</p>
-            <div className="dialog-actions">
-              <button className="btn btn-ghost" onClick={() => setConfirmDelete(null)}>Cancel</button>
-              <button className="btn-confirm-delete" onClick={handleDeleteConfirm}>Delete</button>
+        <div className="modal-overlay" onClick={() => setConfirmDelete(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Delete File?</h3>
+            <p>Are you sure you want to delete "{confirmDelete.originalFilename}"?</p>
+            <div className="modal-actions">
+              <button className="btn btn-danger" onClick={handleDeleteConfirm}>
+                Delete
+              </button>
+              <button className="btn btn-ghost" onClick={() => setConfirmDelete(null)}>
+                Cancel
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Auth modal ── */}
-      {showAuth && (
-        <AuthModal
-          apiBase={API_BASE}
-          onLogin={handleLogin}
-          onClose={() => setShowAuth(false)}
-        />
-      )}
+      <div className="toasts">
+        {toasts.map((t) => (
+          <div key={t.id} className={`toast toast-${t.type}`}>
+            {t.message}
+            <button onClick={() => dismissToast(t.id)}>✕</button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

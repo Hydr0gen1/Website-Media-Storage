@@ -63,6 +63,6 @@ router.post('/upload-finalize', uploadLimiter, optionalAuth, requireAuth, finali
 router.get('/upload-status/:uploadId', optionalAuth, requireAuth, getUploadStatus);
 router.get('/files', optionalAuth, requireAuth, listFiles);
 router.delete('/files/:id', optionalAuth, requireAuth, deleteFile);
-router.get('/files/:id/download', downloadFile);
+router.get('/files/:id/download', optionalAuth, requireAuth, downloadFile);
 
 module.exports = router;

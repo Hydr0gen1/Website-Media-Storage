@@ -107,7 +107,7 @@ export default function PlaylistView({
       ) : (
         <div className="playlist-items">
           {items.map((item, index) => (
-            <div key={item.file.id} className="playlist-track">
+            <div key={item.id} className="playlist-track">
               <span className="track-num">{index + 1}</span>
               <div className="track-info">
                 <div className="file-name" title={item.file.originalFilename}>{item.file.originalFilename}</div>
