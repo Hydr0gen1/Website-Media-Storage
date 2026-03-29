@@ -1,0 +1,7 @@
+# Aider project configuration
+# Points Aider at the same context files Claude Code uses
+
+read:
+  - .claude/CLAUDE.md
+  - .claude/rules/conventions.md
+  - .claude/rules/server-constraints.md

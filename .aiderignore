@@ -1,0 +1,5 @@
+# Don't let Aider edit documentation/config files
+.claude/
+.aider.conf.yml
+docker-compose.yml
+Dockerfile
