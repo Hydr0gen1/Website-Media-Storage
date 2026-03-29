@@ -6,11 +6,11 @@ function formatFileRecord(f) {
   return {
     id: f.id,
     filename: f.filename,
-    originalFilename: f.originalfilename,
-    fileType: f.filetype,
-    mimeType: f.mimetype,
+    originalFilename: f.original_filename,
+    fileType: f.file_type,
+    mimeType: f.mime_type,
     size: f.size,
-    uploadDate: f.uploaddate,
+    uploadDate: f.upload_date,
   };
 }
 
@@ -85,7 +85,7 @@ async function uploadFile(req, res, next) {
     }
 
     const result = await pool.query(
-      `INSERT INTO files (userid, filename, originalFilename, fileType, mimeType, size, filePath)
+      `INSERT INTO files (user_id, filename, original_filename, file_type, mime_type, size, file_path)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
       [
@@ -111,17 +111,17 @@ async function listFiles(req, res, next) {
     const { type, sort = 'date', order = 'desc' } = req.query;
 
     const SORT_COLS = {
-      name: 'originalfilename',
-      date: 'uploaddate',
+      name: 'original_filename',
+      date: 'upload_date',
       size: 'size',
     };
-    const sortCol = SORT_COLS[sort] || 'uploaddate';
+    const sortCol = SORT_COLS[sort] || 'upload_date';
     const sortOrder = order === 'asc' ? 'ASC' : 'DESC';
 
     const params = [req.user.id];
     let typeFilter = '';
     if (type === 'video' || type === 'audio' || type === 'image') {
-      typeFilter = 'AND filetype = $2';
+      typeFilter = 'AND file_type = $2';
       params.push(type);
     }
 
@@ -153,9 +153,9 @@ async function deleteFile(req, res, next) {
     await pool.query('DELETE FROM files WHERE id = $1', [id]);
 
     try {
-      await fs.promises.unlink(file.filepath);
+      await fs.promises.unlink(file.file_path);
     } catch (err) {
-      console.warn(`Warning: Could not delete file from disk: ${file.filepath}`, err.message);
+      console.warn(`Warning: Could not delete file from disk: ${file.file_path}`, err.message);
     }
 
     res.json({ message: 'File deleted successfully' });
@@ -175,11 +175,11 @@ async function downloadFile(req, res, next) {
 
     const file = result.rows[0];
 
-    if (!fs.existsSync(file.filepath)) {
+    if (!fs.existsSync(file.file_path)) {
       return res.status(404).json({ error: 'File not found on disk' });
     }
 
-    const stat = fs.statSync(file.filepath);
+    const stat = fs.statSync(file.file_path);
     const fileSize = stat.size;
     const range = req.headers.range;
 
@@ -193,19 +193,19 @@ async function downloadFile(req, res, next) {
         'Content-Range': `bytes ${start}-${end}/${fileSize}`,
         'Accept-Ranges': 'bytes',
         'Content-Length': chunkSize,
-        'Content-Type': file.mimetype,
-        'Content-Disposition': `inline; filename="${encodeURIComponent(file.originalfilename)}"`,
+        'Content-Type': file.mime_type,
+        'Content-Disposition': `inline; filename="${encodeURIComponent(file.original_filename)}"`,
       });
 
-      fs.createReadStream(file.filepath, { start, end }).pipe(res);
+      fs.createReadStream(file.file_path, { start, end }).pipe(res);
     } else {
       res.writeHead(200, {
         'Content-Length': fileSize,
-        'Content-Type': file.mimetype,
+        'Content-Type': file.mime_type,
         'Accept-Ranges': 'bytes',
-        'Content-Disposition': `inline; filename="${encodeURIComponent(file.originalfilename)}"`,
+        'Content-Disposition': `inline; filename="${encodeURIComponent(file.original_filename)}"`,
       });
-      fs.createReadStream(file.filepath).pipe(res);
+      fs.createReadStream(file.file_path).pipe(res);
     }
   } catch (err) {
     next(err);

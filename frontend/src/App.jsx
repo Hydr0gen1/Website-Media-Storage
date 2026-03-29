@@ -91,6 +91,7 @@ export default function App() {
     setPlaylists([]);
     setSelectedPlaylistId(null);
     setPlaylistDetail(null);
+    setActiveFile(null);
     setActivePlaylist(null);
     setSidebarTab('files');
     localStorage.removeItem('authToken');
@@ -111,7 +112,10 @@ export default function App() {
 
   // ── Fetch files ───────────────────────────────────────────────────────────
   const fetchFiles = useCallback(async () => {
-    if (!authToken) { setLoading(false); return; }
+    if (!authToken) {
+      setLoading(false);
+      return;
+    }
     try {
       const params = { sort: sort.field, order: sort.order };
       if (typeFilter !== 'all') params.type = typeFilter;
@@ -200,6 +204,7 @@ export default function App() {
 
   const handlePlayPlaylist = useCallback((playlist, items) => {
     setActivePlaylist({ playlist, items, currentIndex: 0 });
+    setActiveFile(null);
     setSidebarTab('files');
   }, []);
 
@@ -263,19 +268,39 @@ export default function App() {
       <main className="app-main">
         <aside className="sidebar">
           {sidebarTab === 'files' ? (
-            <FileList
-              files={files}
-              loading={loading}
-              typeFilter={typeFilter}
-              setTypeFilter={setTypeFilter}
-              sort={sort}
-              setSort={setSort}
-              onPlay={handlePlayFile}
-              onDelete={handleDeleteRequest}
-              onUploadComplete={handleUploadComplete}
-              apiBase={API_BASE}
-              authToken={authToken}
-            />
+            <>
+              <ChunkedUploadZone
+                apiBase={API_BASE}
+                authToken={authToken}
+                onUploadComplete={handleUploadComplete}
+                onError={(msg) => showToast(msg, 'error')}
+              />
+              <FileList
+                files={files}
+                loading={loading}
+                activeFile={activeFile}
+                onSelect={handlePlayFile}
+                onDelete={handleDeleteRequest}
+                sort={sort}
+                onSortChange={setSort}
+                playlists={playlists}
+                onAddToPlaylist={async (playlistId, fileId) => {
+                  try {
+                    await axios.post(
+                      `${API_BASE}/playlists/${playlistId}/items`,
+                      { fileId },
+                      { headers: authHeaders() }
+                    );
+                    showToast('Added to playlist');
+                    fetchPlaylists();
+                  } catch (err) {
+                    showToast(err.response?.data?.error || 'Failed to add to playlist', 'error');
+                  }
+                }}
+                formatBytes={formatBytes}
+                formatDate={formatDate}
+              />
+            </>
           ) : (
             <PlaylistPanel
               playlists={playlists}
@@ -302,19 +327,10 @@ export default function App() {
               onPlaylistUpdated={handlePlaylistUpdated}
             />
           ) : (
-            <FileList
-              files={files}
-              loading={loading}
-              typeFilter={typeFilter}
-              setTypeFilter={setTypeFilter}
-              sort={sort}
-              setSort={setSort}
-              onPlay={handlePlayFile}
-              onDelete={handleDeleteRequest}
-              onUploadComplete={handleUploadComplete}
-              apiBase={API_BASE}
-              authToken={authToken}
-            />
+            <div className="file-list-empty">
+              <span className="empty-icon">📭</span>
+              {loading ? 'Loading files...' : currentUser ? 'Select a file to play' : 'Please log in to view your files'}
+            </div>
           )}
         </section>
       </main>
@@ -322,20 +338,37 @@ export default function App() {
       {activeFile && (
         <MediaPlayer
           file={activeFile}
-          onClose={() => setActiveFile(null)}
+          playlist={null}
+          apiBase={API_BASE}
           onNext={handleNextFile}
           onPrev={handlePrevFile}
+          onTrackEnd={handleNextFile}
+          onSelectTrack={null}
+          onClose={() => setActiveFile(null)}
+          formatBytes={formatBytes}
+          formatDate={formatDate}
         />
       )}
 
       {activePlaylist && (
         <MediaPlayer
-          playlist={activePlaylist.playlist}
-          items={activePlaylist.items}
-          currentIndex={activePlaylist.currentIndex}
-          onClose={() => setActivePlaylist(null)}
+          playlist={activePlaylist}
+          apiBase={API_BASE}
           onNext={() => setActivePlaylist((p) => ({ ...p, currentIndex: Math.min(p.currentIndex + 1, p.items.length - 1) }))}
           onPrev={() => setActivePlaylist((p) => ({ ...p, currentIndex: Math.max(p.currentIndex - 1, 0) }))}
+          onTrackEnd={() =>
+            setActivePlaylist((p) =>
+              p.currentIndex < p.items.length - 1
+                ? { ...p, currentIndex: p.currentIndex + 1 }
+                : p
+            )
+          }
+          onSelectTrack={(idx) =>
+            setActivePlaylist((p) => ({ ...p, currentIndex: idx }))
+          }
+          onClose={() => setActivePlaylist(null)}
+          formatBytes={formatBytes}
+          formatDate={formatDate}
         />
       )}
 

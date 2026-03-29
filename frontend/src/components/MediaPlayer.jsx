@@ -3,19 +3,20 @@ import ReactPlayer from 'react-player';
 
 export default function MediaPlayer({
   file,
+  playlist,
   apiBase,
-  playlist,       // { playlist, items, currentIndex } | null
   onNext,
   onPrev,
   onTrackEnd,
   onSelectTrack,
+  onClose,
   formatBytes,
   formatDate,
 }) {
   const [imageError, setImageError] = useState(false);
   useEffect(() => { setImageError(false); }, [file?.id]);
 
-  if (!file) {
+  if (!file && !playlist) {
     return (
       <div className="player-empty">
         <span className="player-empty-icon">▶️</span>
@@ -24,16 +25,28 @@ export default function MediaPlayer({
     );
   }
 
-  const streamUrl = `${apiBase}/files/${file.id}/download`;
-  const isVideo = file.fileType === 'video';
-  const isAudio = file.fileType === 'audio';
-  const isImage = file.fileType === 'image';
+  const currentItem = playlist
+    ? playlist.items[playlist.currentIndex]
+    : null;
+  const activeFile = file ?? currentItem?.file;
+
+  const streamUrl = `${apiBase}/files/${activeFile?.id}/download`;
+  const isVideo = activeFile?.fileType === 'video';
+  const isAudio = activeFile?.fileType === 'audio';
+  const isImage = activeFile?.fileType === 'image';
 
   const hasPrev = playlist && playlist.currentIndex > 0;
   const hasNext = playlist && playlist.currentIndex < playlist.items.length - 1;
 
   return (
     <div className="player-content">
+      <button
+        className="btn btn-ghost player-close"
+        onClick={onClose}
+        title="Close player"
+      >
+        ✕
+      </button>
       {/* Now playing header */}
       <div className="player-now-playing">
         <span style={{ fontSize: '1.25rem' }}>{isVideo ? '🎬' : isAudio ? '🎵' : '🖼️'}</span>
@@ -44,20 +57,20 @@ export default function MediaPlayer({
             </div>
           )}
           {!playlist && <div className="now-playing-label">Now Playing</div>}
-          <div className="now-playing-name" title={file.originalFilename}>
-            {file.originalFilename}
+          <div className="now-playing-name" title={activeFile?.originalFilename}>
+            {activeFile?.originalFilename}
           </div>
         </div>
       </div>
 
       {/* Image viewer */}
-      {isImage && (
+      {isImage && activeFile && (
         <div className="player-image-container">
           {!imageError ? (
             <img
-              key={file.id}
+              key={activeFile.id}
               src={streamUrl}
-              alt={file.originalFilename}
+              alt={activeFile.originalFilename}
               className="player-image"
               onError={() => setImageError(true)}
             />
@@ -68,10 +81,10 @@ export default function MediaPlayer({
       )}
 
       {/* Video player */}
-      {isVideo && (
+      {isVideo && activeFile && (
         <div className="player-wrapper">
           <ReactPlayer
-            key={file.id}
+            key={activeFile.id}
             url={streamUrl}
             controls
             width="100%"
@@ -91,11 +104,11 @@ export default function MediaPlayer({
       )}
 
       {/* Audio player */}
-      {isAudio && (
+      {isAudio && activeFile && (
         <div className="player-wrapper audio-player">
           <span className="audio-icon-large">🎵</span>
           <audio
-            key={file.id}
+            key={activeFile.id}
             className="native-audio"
             controls
             preload="metadata"
@@ -110,26 +123,28 @@ export default function MediaPlayer({
       {/* Playlist prev/next controls */}
       {playlist && (
         <div className="player-playlist-controls">
-          <button className="btn btn-ghost" disabled={!hasPrev} onClick={onPrev}>
+          <button className="btn btn-ghost" disabled={!hasPrev} onClick={() => onSelectTrack?.(playlist.currentIndex - 1)}>
             ⏮ Prev
           </button>
           <span className="player-track-indicator">
             {playlist.currentIndex + 1} / {playlist.items.length}
           </span>
-          <button className="btn btn-ghost" disabled={!hasNext} onClick={onNext}>
+          <button className="btn btn-ghost" disabled={!hasNext} onClick={() => onSelectTrack?.(playlist.currentIndex + 1)}>
             Next ⏭
           </button>
         </div>
       )}
 
       {/* File metadata */}
-      <div className="player-meta">
-        <span>{formatBytes(file.size)}</span>
-        <span>·</span>
-        <span>{file.mimeType}</span>
-        <span>·</span>
-        <span>{formatDate(file.uploadDate)}</span>
-      </div>
+      {(file || currentItem) && (
+        <div className="player-meta">
+          <span>{formatBytes(activeFile.size)}</span>
+          <span>·</span>
+          <span>{activeFile.mimeType}</span>
+          <span>·</span>
+          <span>{formatDate(activeFile.uploadDate)}</span>
+        </div>
+      )}
 
       {/* Playlist queue */}
       {playlist && playlist.items.length > 1 && (
@@ -139,10 +154,10 @@ export default function MediaPlayer({
             <div
               key={item.file.id}
               className={`queue-item ${idx === playlist.currentIndex ? 'active' : ''}`}
-              onClick={() => onSelectTrack(idx)}
+              onClick={() => onSelectTrack?.(idx)}
               role="button"
               tabIndex={0}
-              onKeyDown={(e) => e.key === 'Enter' && onSelectTrack(idx)}
+              onKeyDown={(e) => e.key === 'Enter' && onSelectTrack?.(idx)}
             >
               <span className="queue-num">{idx + 1}</span>
               <span className="queue-name">{item.file.originalFilename}</span>

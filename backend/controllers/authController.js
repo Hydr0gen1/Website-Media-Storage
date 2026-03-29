@@ -10,7 +10,7 @@ function generateToken() {
 }
 
 function formatUser(u) {
-  return { id: u.id, username: u.username, createdAt: u.createdat };
+  return { id: u.id, username: u.username, createdAt: u.created_at };
 }
 
 async function register(req, res, next) {
@@ -42,7 +42,7 @@ async function register(req, res, next) {
     const expiresAt = new Date(Date.now() + SESSION_DAYS * 86400 * 1000);
 
     await pool.query(
-      'INSERT INTO sessions (userId, token, expiresAt) VALUES ($1, $2, $3)',
+      'INSERT INTO sessions (user_id, token, expires_at) VALUES ($1, $2, $3)',
       [user.id, token, expiresAt]
     );
 
@@ -74,7 +74,7 @@ async function login(req, res, next) {
     const expiresAt = new Date(Date.now() + SESSION_DAYS * 86400 * 1000);
 
     await pool.query(
-      'INSERT INTO sessions (userId, token, expiresAt) VALUES ($1, $2, $3)',
+      'INSERT INTO sessions (user_id, token, expires_at) VALUES ($1, $2, $3)',
       [user.id, token, expiresAt]
     );
 

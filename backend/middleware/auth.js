@@ -11,14 +11,14 @@ async function optionalAuth(req, res, next) {
   const token = header.slice(7);
   try {
     const result = await pool.query(
-      `SELECT s.userid, u.username
+      `SELECT s.user_id, u.username
        FROM sessions s
-       JOIN users u ON u.id = s.userid
-       WHERE s.token = $1 AND s.expiresat > NOW()`,
+       JOIN users u ON u.id = s.user_id
+       WHERE s.token = $1 AND s.expires_at > NOW()`,
       [token]
     );
     if (result.rows.length) {
-      req.user = { id: result.rows[0].userid, username: result.rows[0].username };
+      req.user = { id: result.rows[0].user_id, username: result.rows[0].username };
     }
   } catch {
     // ignore DB errors — treat as unauthenticated
