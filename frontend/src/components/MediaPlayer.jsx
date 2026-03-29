@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import ReactPlayer from 'react-player';
 
 export default function MediaPlayer({
@@ -11,6 +12,9 @@ export default function MediaPlayer({
   formatBytes,
   formatDate,
 }) {
+  const [imageError, setImageError] = useState(false);
+  useEffect(() => { setImageError(false); }, [file?.id]);
+
   if (!file) {
     return (
       <div className="player-empty">
@@ -23,6 +27,7 @@ export default function MediaPlayer({
   const streamUrl = `${apiBase}/files/${file.id}/download`;
   const isVideo = file.fileType === 'video';
   const isAudio = file.fileType === 'audio';
+  const isImage = file.fileType === 'image';
 
   const hasPrev = playlist && playlist.currentIndex > 0;
   const hasNext = playlist && playlist.currentIndex < playlist.items.length - 1;
@@ -31,7 +36,7 @@ export default function MediaPlayer({
     <div className="player-content">
       {/* Now playing header */}
       <div className="player-now-playing">
-        <span style={{ fontSize: '1.25rem' }}>{isVideo ? '🎬' : '🎵'}</span>
+        <span style={{ fontSize: '1.25rem' }}>{isVideo ? '🎬' : isAudio ? '🎵' : '🖼️'}</span>
         <div style={{ minWidth: 0, flex: 1 }}>
           {playlist && (
             <div className="now-playing-label">
@@ -44,6 +49,23 @@ export default function MediaPlayer({
           </div>
         </div>
       </div>
+
+      {/* Image viewer */}
+      {isImage && (
+        <div className="player-image-container">
+          {!imageError ? (
+            <img
+              key={file.id}
+              src={streamUrl}
+              alt={file.originalFilename}
+              className="player-image"
+              onError={() => setImageError(true)}
+            />
+          ) : (
+            <div className="player-image-error">Failed to load image</div>
+          )}
+        </div>
+      )}
 
       {/* Video player */}
       {isVideo && (

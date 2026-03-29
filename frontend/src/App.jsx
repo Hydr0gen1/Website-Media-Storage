@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import ChunkedUploadZone from './components/ChunkedUploadZone';
 import FileList from './components/FileList';
@@ -48,11 +48,24 @@ export default function App() {
 
   // ── Toasts ───────────────────────────────────────────────────────────────
   const [toasts, setToasts] = useState([]);
+  const toastTimers = useRef({});
 
-  const showToast = useCallback((message, type = 'success') => {
+  const dismissToast = useCallback((id) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+    clearTimeout(toastTimers.current[id]);
+    delete toastTimers.current[id];
+  }, []);
+
+  const showToast = useCallback((message, type = 'success', duration = 4000) => {
     const id = Date.now();
     setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
+    toastTimers.current[id] = setTimeout(() => dismissToast(id), duration);
+  }, [dismissToast]);
+
+  // Clear all pending timers on unmount
+  useEffect(() => {
+    const timers = toastTimers.current;
+    return () => Object.values(timers).forEach(clearTimeout);
   }, []);
 
   // ── Auth helpers ──────────────────────────────────────────────────────────
@@ -406,7 +419,14 @@ export default function App() {
       {/* ── Toasts ── */}
       <div className="toast-container">
         {toasts.map((t) => (
-          <div key={t.id} className={`toast toast-${t.type}`}>{t.message}</div>
+          <div key={t.id} className={`toast toast-${t.type}`} role="alert">
+            <span className="toast-content">{t.message}</span>
+            <button
+              className="toast-dismiss"
+              onClick={() => dismissToast(t.id)}
+              aria-label="Dismiss"
+            >✕</button>
+          </div>
         ))}
       </div>
 
