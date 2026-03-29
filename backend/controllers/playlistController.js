@@ -3,12 +3,12 @@ const { pool } = require('../db');
 function formatPlaylist(p) {
   return {
     id: p.id,
-    userId: p.userid,
+    userId: p.user_id,
     name: p.name,
     type: p.type,
     description: p.description || null,
-    createdAt: p.createdat,
-    updatedAt: p.updatedat,
+    createdAt: p.created_at,
+    updatedAt: p.updated_at,
     itemCount: p.itemcount !== undefined ? parseInt(p.itemcount, 10) : undefined,
   };
 }
@@ -20,11 +20,11 @@ function formatItem(row) {
     file: {
       id: row.file_id,
       filename: row.filename,
-      originalFilename: row.originalfilename,
-      fileType: row.filetype,
-      mimeType: row.mimetype,
+      originalFilename: row.original_filename,
+      fileType: row.file_type,
+      mimeType: row.mime_type,
       size: row.size,
-      uploadDate: row.uploaddate,
+      uploadDate: row.upload_date,
     },
   };
 }
@@ -40,7 +40,7 @@ async function createPlaylist(req, res, next) {
     }
 
     const result = await pool.query(
-      `INSERT INTO playlists (userId, name, type, description)
+      `INSERT INTO playlists (user_id, name, type, description)
        VALUES ($1, $2, $3, $4) RETURNING *`,
       [req.user.id, name, type, description || null]
     );
@@ -58,10 +58,10 @@ async function listPlaylists(req, res, next) {
     const result = await pool.query(
       `SELECT p.*, COUNT(pi.id)::int AS itemcount
        FROM playlists p
-       LEFT JOIN playlistitems pi ON pi.playlistid = p.id
-       WHERE p.userid = $1
+       LEFT JOIN playlist_items pi ON pi.playlist_id = p.id
+       WHERE p.user_id = $1
        GROUP BY p.id
-       ORDER BY p.createdat DESC`,
+       ORDER BY p.created_at DESC`,
       [req.user.id]
     );
     res.json(result.rows.map(formatPlaylist));
@@ -74,7 +74,7 @@ async function getPlaylist(req, res, next) {
   try {
     const { id } = req.params;
     const pResult = await pool.query(
-      'SELECT * FROM playlists WHERE id = $1 AND userid = $2',
+      'SELECT * FROM playlists WHERE id = $1 AND user_id = $2',
       [id, req.user.id]
     );
     if (!pResult.rows.length) {
@@ -83,11 +83,11 @@ async function getPlaylist(req, res, next) {
 
     const itemsResult = await pool.query(
       `SELECT pi.id AS item_id, pi.position,
-              f.id AS file_id, f.filename, f.originalfilename,
-              f.filetype, f.mimetype, f.size, f.uploaddate
-       FROM playlistitems pi
-       JOIN files f ON f.id = pi.fileid
-       WHERE pi.playlistid = $1
+              f.id AS file_id, f.filename, f.original_filename,
+              f.file_type, f.mime_type, f.size, f.upload_date
+       FROM playlist_items pi
+       JOIN files f ON f.id = pi.file_id
+       WHERE pi.playlist_id = $1
        ORDER BY pi.position ASC`,
       [id]
     );
@@ -107,8 +107,8 @@ async function updatePlaylist(req, res, next) {
     if (!name) return res.status(400).json({ error: 'name is required' });
 
     const result = await pool.query(
-      `UPDATE playlists SET name = $1, description = $2, updatedat = NOW()
-       WHERE id = $3 AND userid = $4 RETURNING *`,
+      `UPDATE playlists SET name = $1, description = $2, updated_at = NOW()
+       WHERE id = $3 AND user_id = $4 RETURNING *`,
       [name, description || null, id, req.user.id]
     );
     if (!result.rows.length) {
@@ -127,7 +127,7 @@ async function deletePlaylist(req, res, next) {
   try {
     const { id } = req.params;
     const result = await pool.query(
-      'DELETE FROM playlists WHERE id = $1 AND userid = $2 RETURNING id',
+      'DELETE FROM playlists WHERE id = $1 AND user_id = $2 RETURNING id',
       [id, req.user.id]
     );
     if (!result.rows.length) {
@@ -147,7 +147,7 @@ async function addItem(req, res, next) {
 
     // Verify playlist belongs to user
     const pl = await pool.query(
-      'SELECT * FROM playlists WHERE id = $1 AND userid = $2',
+      'SELECT * FROM playlists WHERE id = $1 AND user_id = $2',
       [id, req.user.id]
     );
     if (!pl.rows.length) return res.status(404).json({ error: 'Playlist not found' });
@@ -158,13 +158,13 @@ async function addItem(req, res, next) {
 
     // Next position = current count
     const countResult = await pool.query(
-      'SELECT COUNT(*) FROM playlistitems WHERE playlistid = $1',
+      'SELECT COUNT(*) FROM playlist_items WHERE playlist_id = $1',
       [id]
     );
     const position = parseInt(countResult.rows[0].count, 10);
 
     const result = await pool.query(
-      `INSERT INTO playlistitems (playlistId, fileId, position)
+      `INSERT INTO playlist_items (playlist_id, file_id, position)
        VALUES ($1, $2, $3) RETURNING *`,
       [id, fileId, position]
     );
@@ -183,13 +183,13 @@ async function removeItem(req, res, next) {
 
     // Verify playlist belongs to user
     const pl = await pool.query(
-      'SELECT id FROM playlists WHERE id = $1 AND userid = $2',
+      'SELECT id FROM playlists WHERE id = $1 AND user_id = $2',
       [id, req.user.id]
     );
     if (!pl.rows.length) return res.status(404).json({ error: 'Playlist not found' });
 
     const result = await pool.query(
-      'DELETE FROM playlistitems WHERE playlistid = $1 AND fileid = $2 RETURNING id',
+      'DELETE FROM playlist_items WHERE playlist_id = $1 AND file_id = $2 RETURNING id',
       [id, fileId]
     );
     if (!result.rows.length) {
@@ -213,7 +213,7 @@ async function reorderItems(req, res, next) {
 
     // Verify playlist belongs to user
     const pl = await pool.query(
-      'SELECT id FROM playlists WHERE id = $1 AND userid = $2',
+      'SELECT id FROM playlists WHERE id = $1 AND user_id = $2',
       [id, req.user.id]
     );
     if (!pl.rows.length) return res.status(404).json({ error: 'Playlist not found' });
@@ -223,7 +223,7 @@ async function reorderItems(req, res, next) {
       await client.query('BEGIN');
       for (let i = 0; i < orderedFileIds.length; i++) {
         await client.query(
-          'UPDATE playlistitems SET position = $1 WHERE playlistid = $2 AND fileid = $3',
+          'UPDATE playlist_items SET position = $1 WHERE playlist_id = $2 AND file_id = $3',
           [i, id, orderedFileIds[i]]
         );
       }

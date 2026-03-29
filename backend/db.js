@@ -24,67 +24,67 @@ async function initDB() {
         id SERIAL PRIMARY KEY,
         username VARCHAR(255) UNIQUE NOT NULL,
         password_hash VARCHAR(255) NOT NULL,
-        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS files (
         id SERIAL PRIMARY KEY,
-        userid INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         filename VARCHAR(255) UNIQUE NOT NULL,
-        originalFilename VARCHAR(255) NOT NULL,
-        fileType VARCHAR(50) NOT NULL,
-        mimeType VARCHAR(100) NOT NULL,
+        original_filename VARCHAR(255) NOT NULL,
+        file_type VARCHAR(50) NOT NULL,
+        mime_type VARCHAR(100) NOT NULL,
         size BIGINT NOT NULL,
-        uploadDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        filePath VARCHAR(500) NOT NULL
+        upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        file_path VARCHAR(500) NOT NULL
       )
     `);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS sessions (
         id SERIAL PRIMARY KEY,
-        userId INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         token VARCHAR(255) UNIQUE NOT NULL,
-        expiresAt TIMESTAMP NOT NULL,
-        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS playlists (
         id SERIAL PRIMARY KEY,
-        userId INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         name VARCHAR(255) NOT NULL,
         type VARCHAR(50) NOT NULL,
         description TEXT,
-        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(userId, name)
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, name)
       )
     `);
 
     await client.query(`
-      CREATE TABLE IF NOT EXISTS playlistItems (
+      CREATE TABLE IF NOT EXISTS playlist_items (
         id SERIAL PRIMARY KEY,
-        playlistId INTEGER NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
-        fileId INTEGER NOT NULL REFERENCES files(id) ON DELETE CASCADE,
+        playlist_id INTEGER NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
+        file_id INTEGER NOT NULL REFERENCES files(id) ON DELETE CASCADE,
         position INTEGER NOT NULL,
-        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(playlistId, fileId)
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(playlist_id, file_id)
       )
     `);
 
     // Add indexes for performance
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_files_userid ON files(userid)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_files_userid ON files(user_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_sessions_userid ON sessions(userid)`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_playlists_userid ON playlists(userid)`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_playlistitems_playlistid ON playlistItems(playlistId)`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_playlistitems_fileid ON playlistItems(fileId)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_sessions_userid ON sessions(user_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_playlists_userid ON playlists(user_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_playlistitems_playlistid ON playlist_items(playlist_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_playlistitems_fileid ON playlist_items(file_id)`);
 
-    await client.query('DELETE FROM sessions WHERE expiresat < NOW()');
+    await client.query('DELETE FROM sessions WHERE expires_at < NOW()');
 
     console.log('Database initialized successfully');
   } finally {
