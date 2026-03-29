@@ -42,11 +42,6 @@ async function initDB() {
       )
     `);
 
-    // Migration: add userid to existing files tables that predate this column
-    await client.query(`
-      ALTER TABLE files ADD COLUMN IF NOT EXISTS userid INTEGER REFERENCES users(id) ON DELETE CASCADE
-    `);
-
     await client.query(`
       CREATE TABLE IF NOT EXISTS sessions (
         id SERIAL PRIMARY KEY,
@@ -80,6 +75,14 @@ async function initDB() {
         UNIQUE(playlistId, fileId)
       )
     `);
+
+    // Add indexes for performance
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_files_userid ON files(userid)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_sessions_userid ON sessions(userid)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_playlists_userid ON playlists(userid)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_playlistitems_playlistid ON playlistItems(playlistId)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_playlistitems_fileid ON playlistItems(fileId)`);
 
     await client.query('DELETE FROM sessions WHERE expiresat < NOW()');
 

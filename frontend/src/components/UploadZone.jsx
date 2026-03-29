@@ -1,9 +1,13 @@
 import { useState, useRef, useCallback } from 'react';
 import axios from 'axios';
 
-const ALLOWED_EXTENSIONS = ['.mov', '.mp4', '.mp3', '.wav', '.ogg'];
+const ALLOWED_EXTENSIONS = [
+  '.mov', '.mp4', '.webm', '.avi', '.mkv',
+  '.mp3', '.wav', '.ogg', '.flac', '.aac', '.m4a',
+  '.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp', '.heic', '.heif',
+];
 
-export default function UploadZone({ apiBase, onUploadComplete, onError }) {
+export default function UploadZone({ apiBase, authToken, onUploadComplete, onError }) {
   const [dragOver, setDragOver] = useState(false);
   const [uploads, setUploads] = useState([]);
   const inputRef = useRef(null);
@@ -27,7 +31,10 @@ export default function UploadZone({ apiBase, onUploadComplete, onError }) {
 
       try {
         const { data } = await axios.post(`${apiBase}/upload`, form, {
-          headers: { 'Content-Type': 'multipart/form-data' },
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+          },
           onUploadProgress: (e) => {
             const pct = Math.round((e.loaded / e.total) * 100);
             setUploads((prev) =>
@@ -57,7 +64,7 @@ export default function UploadZone({ apiBase, onUploadComplete, onError }) {
         }, 3000);
       }
     },
-    [apiBase, onUploadComplete, onError]
+    [apiBase, authToken, onUploadComplete, onError]
   );
 
   const handleFiles = useCallback(
@@ -109,7 +116,7 @@ export default function UploadZone({ apiBase, onUploadComplete, onError }) {
         <p className="drop-text">
           {dragOver ? 'Drop to upload' : 'Click or drag files here'}
         </p>
-        <p className="drop-subtext">Videos and audio up to 2 GB</p>
+        <p className="drop-subtext">Videos, audio, and images up to 2 GB</p>
         <div className="file-types">
           {ALLOWED_EXTENSIONS.map((ext) => (
             <span key={ext} className="file-type-badge">{ext}</span>

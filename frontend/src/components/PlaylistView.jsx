@@ -59,9 +59,8 @@ export default function PlaylistView({
     setAdding(true);
     try {
       await axios.post(`${apiBase}/playlists/${playlist.id}/items`, { fileId }, { headers });
-      const file = allFiles.find((f) => f.id === fileId);
-      const newItem = { id: Date.now(), position: items.length, file };
-      onPlaylistUpdated({ ...playlist, items: [...items, newItem] });
+      const { data } = await axios.get(`${apiBase}/playlists/${playlist.id}`, { headers });
+      onPlaylistUpdated(data);
     } catch {
       // silent
     } finally {
@@ -108,7 +107,7 @@ export default function PlaylistView({
       ) : (
         <div className="playlist-items">
           {items.map((item, index) => (
-            <div key={item.file.id} className="playlist-track">
+            <div key={item.id} className="playlist-track">
               <span className="track-num">{index + 1}</span>
               <div className="track-info">
                 <div className="file-name" title={item.file.originalFilename}>{item.file.originalFilename}</div>
