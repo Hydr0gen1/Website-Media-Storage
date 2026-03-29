@@ -11,6 +11,21 @@ fs.mkdirSync(CHUNK_DIR, { recursive: true });
 // In-memory upload session store
 const uploadSessions = new Map();
 
+const SESSION_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
+
+// Cleanup expired sessions every 30 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, session] of uploadSessions.entries()) {
+    if (now - session.createdAt > SESSION_TTL_MS) {
+      for (const chunkIdx of session.uploadedChunks) {
+        fs.unlink(path.join(CHUNK_DIR, `${id}-${chunkIdx}`), () => {});
+      }
+      uploadSessions.delete(id);
+    }
+  }
+}, 30 * 60 * 1000); // run every 30 minutes
+
 function formatFileRecord(f) {
   return {
     id: f.id,
@@ -64,7 +79,7 @@ function getFileType(mimeType, filename) {
   if (['.mp4', '.mov', '.webm', '.avi', '.mkv'].includes(ext)) return 'video';
   if (['.mp3', '.wav', '.ogg', '.flac', '.aac', '.m4a'].includes(ext)) return 'audio';
   if (['.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp', '.heic', '.heif', '.avif', '.bmp', '.tiff', '.ico'].includes(ext)) return 'image';
-  return 'unknown';
+  return null;
 }
 
 async function uploadChunk(req, res, next) {
@@ -127,9 +142,9 @@ async function uploadChunk(req, res, next) {
 }
 
 async function finalizeChunkedUpload(req, res, next) {
-  // Declare uploadId before try so catch block can access it
   const { uploadId, originalFilename, mimeType } = req.body;
 
+  let finalPath;
   try {
     if (!uploadId || !uploadSessions.has(uploadId)) {
       return res.status(400).json({ error: 'Invalid or expired upload session' });
@@ -156,7 +171,7 @@ async function finalizeChunkedUpload(req, res, next) {
     }
 
     const finalFilename = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${session.fileExt}`;
-    const finalPath = path.join(__dirname, '..', 'uploads', finalFilename);
+    finalPath = path.join(__dirname, '..', 'uploads', finalFilename);
 
     // Stream-merge chunks in order without loading all data into memory
     const writeStream = fs.createWriteStream(finalPath);
@@ -164,7 +179,10 @@ async function finalizeChunkedUpload(req, res, next) {
       const chunkPath = path.join(CHUNK_DIR, `${uploadId}-${i}`);
       await new Promise((resolve, reject) => {
         const readStream = fs.createReadStream(chunkPath);
-        readStream.on('error', reject);
+        readStream.on('error', (err) => {
+          writeStream.destroy();
+          reject(err);
+        });
         readStream.on('end', resolve);
         readStream.pipe(writeStream, { end: false });
       });
@@ -181,6 +199,11 @@ async function finalizeChunkedUpload(req, res, next) {
     const resolvedMime = mimeType || 'application/octet-stream';
     const fileType = getFileType(resolvedMime, resolvedFilename);
 
+    if (!fileType) {
+      fs.unlink(finalPath, () => {});
+      return res.status(400).json({ error: 'Unable to determine file type' });
+    }
+
     const result = await pool.query(
       `INSERT INTO files (userid, filename, originalFilename, fileType, mimeType, size, filePath)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -192,7 +215,9 @@ async function finalizeChunkedUpload(req, res, next) {
 
     res.status(201).json(formatFileRecord(result.rows[0]));
   } catch (err) {
-    // Clean up any remaining chunks on error
+    // Clean up partial merged file
+    if (finalPath) fs.unlink(finalPath, () => {});
+    // Clean up remaining chunks on error
     if (uploadSessions.has(uploadId)) {
       const session = uploadSessions.get(uploadId);
       for (const chunkIdx of session.uploadedChunks) {

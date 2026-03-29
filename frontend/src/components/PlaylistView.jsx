@@ -59,9 +59,8 @@ export default function PlaylistView({
     setAdding(true);
     try {
       await axios.post(`${apiBase}/playlists/${playlist.id}/items`, { fileId }, { headers });
-      const file = allFiles.find((f) => f.id === fileId);
-      const newItem = { id: Date.now(), position: items.length, file };
-      onPlaylistUpdated({ ...playlist, items: [...items, newItem] });
+      const { data } = await axios.get(`${apiBase}/playlists/${playlist.id}`, { headers });
+      onPlaylistUpdated(data);
     } catch {
       // silent
     } finally {
