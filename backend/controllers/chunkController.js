@@ -24,22 +24,46 @@ function formatFileRecord(f) {
 }
 
 const MIME_TO_TYPE = {
+  // Video
   'video/quicktime': 'video',
   'video/mp4': 'video',
+  'video/webm': 'video',
+  'video/avi': 'video',
+  'video/x-msvideo': 'video',
+  'video/x-matroska': 'video',
+  // Audio
   'audio/mpeg': 'audio',
   'audio/mp3': 'audio',
   'audio/wav': 'audio',
   'audio/wave': 'audio',
   'audio/x-wav': 'audio',
   'audio/ogg': 'audio',
+  'audio/flac': 'audio',
+  'audio/aac': 'audio',
+  'audio/mp4': 'audio',
+  'audio/x-m4a': 'audio',
   'video/ogg': 'audio',
+  // Image
+  'image/jpeg': 'image',
+  'image/jpg': 'image',
+  'image/png': 'image',
+  'image/gif': 'image',
+  'image/svg+xml': 'image',
+  'image/webp': 'image',
+  'image/heic': 'image',
+  'image/heif': 'image',
+  'image/avif': 'image',
+  'image/bmp': 'image',
+  'image/tiff': 'image',
+  'image/x-icon': 'image',
 };
 
 function getFileType(mimeType, filename) {
   if (MIME_TO_TYPE[mimeType]) return MIME_TO_TYPE[mimeType];
   const ext = path.extname(filename).toLowerCase();
-  if (['.mp4', '.mov'].includes(ext)) return 'video';
-  if (['.mp3', '.wav', '.ogg'].includes(ext)) return 'audio';
+  if (['.mp4', '.mov', '.webm', '.avi', '.mkv'].includes(ext)) return 'video';
+  if (['.mp3', '.wav', '.ogg', '.flac', '.aac', '.m4a'].includes(ext)) return 'audio';
+  if (['.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp', '.heic', '.heif', '.avif', '.bmp', '.tiff', '.ico'].includes(ext)) return 'image';
   return 'unknown';
 }
 

@@ -42,12 +42,17 @@ const MIME_TO_TYPE = {
   'audio/x-m4a': 'audio',
   'video/ogg': 'audio',
   'image/jpeg': 'image',
+  'image/jpg': 'image',   // non-standard but sent by some tools
   'image/png': 'image',
   'image/gif': 'image',
   'image/svg+xml': 'image',
   'image/webp': 'image',
   'image/heic': 'image',
   'image/heif': 'image',
+  'image/avif': 'image',
+  'image/bmp': 'image',
+  'image/tiff': 'image',
+  'image/x-icon': 'image',
 };
 
 function getFileType(mimetype, originalname) {
