@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import UploadZone from './components/UploadZone';
+import ChunkedUploadZone from './components/ChunkedUploadZone';
 import FileList from './components/FileList';
 import MediaPlayer from './components/MediaPlayer';
 import AuthModal from './components/AuthModal';
@@ -266,8 +266,9 @@ export default function App() {
             <div className="card-header">
               <span className="card-title">Upload</span>
             </div>
-            <UploadZone
+            <ChunkedUploadZone
               apiBase={API_BASE}
+              authToken={authToken}
               onUploadComplete={handleUploadComplete}
               onError={(msg) => showToast(msg, 'error')}
             />

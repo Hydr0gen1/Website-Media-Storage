@@ -343,6 +343,15 @@ body {
 .progress-fill.done  { background: var(--success); }
 .progress-fill.error { background: var(--error); }
 
+.progress-details {
+  margin: 0.125rem 0 0.25rem;
+}
+
+.chunk-info {
+  font-size: 0.6875rem;
+  color: var(--text-tertiary);
+}
+
 /* ── Toast Notifications ──────────────────────────────────────────────────── */
 .toast-container {
   position: fixed;
