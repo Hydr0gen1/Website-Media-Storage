@@ -5,6 +5,7 @@ if (!process.env.DB_PASSWORD) {
   process.exit(1);
 }
 
+const http = require('http');
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -14,6 +15,9 @@ const authRouter = require('./routes/auth');
 const playlistsRouter = require('./routes/playlists');
 
 const app = express();
+const server = http.createServer(app);
+server.timeout = 600000;        // 10 minutes — covers finalize of large uploads
+server.keepAliveTimeout = 620000;
 const PORT = process.env.PORT || 3001;
 
 if (process.env.NODE_ENV !== 'production') {
@@ -53,7 +57,7 @@ app.use((err, req, res, next) => {
 async function start() {
   try {
     await initDB();
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
   } catch (err) {
