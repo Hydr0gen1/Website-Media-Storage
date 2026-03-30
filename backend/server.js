@@ -13,7 +13,6 @@ const { initDB } = require('./db');
 const filesRouter = require('./routes/files');
 const authRouter = require('./routes/auth');
 const playlistsRouter = require('./routes/playlists');
-const chunksRouter = require('./routes/chunks');
 const { router: subscriptionsRouter } = require('./routes/subscriptions');
 
 const app = express();
@@ -34,7 +33,6 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api', filesRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/playlists', playlistsRouter);
-app.use('/api/chunks', chunksRouter);
 app.use('/api/subscriptions', subscriptionsRouter);
 
 // Health check
