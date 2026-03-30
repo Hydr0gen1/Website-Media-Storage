@@ -13,8 +13,11 @@ RUN npm run build
 # ── Stage 2: Runtime ──────────────────────────────────────────────────────────
 FROM node:20-alpine AS runtime
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
+# Install dumb-init, ffmpeg (needed by yt-dlp for format merging), and yt-dlp
+RUN apk add --no-cache dumb-init ffmpeg wget && \
+    wget -qO /usr/local/bin/yt-dlp \
+      https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp && \
+    chmod +x /usr/local/bin/yt-dlp
 
 WORKDIR /app
 

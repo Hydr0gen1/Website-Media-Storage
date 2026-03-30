@@ -84,6 +84,19 @@ async function initDB() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_playlistitems_playlistid ON playlist_items(playlist_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_playlistitems_fileid ON playlist_items(file_id)`);
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS subscriptions (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        channel_url VARCHAR(500) NOT NULL,
+        channel_name VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, channel_url)
+      )
+    `);
+
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_subscriptions_userid ON subscriptions(user_id)`);
+
     await client.query('DELETE FROM sessions WHERE expires_at < NOW()');
 
     console.log('Database initialized successfully');

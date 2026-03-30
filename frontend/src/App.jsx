@@ -6,6 +6,7 @@ import MediaPlayer from './components/MediaPlayer';
 import AuthModal from './components/AuthModal';
 import PlaylistPanel from './components/PlaylistPanel';
 import PlaylistView from './components/PlaylistView';
+import SubscriptionsManager from './components/SubscriptionsManager';
 
 const API_BASE = '/api';
 
@@ -251,6 +252,12 @@ export default function App() {
           >
             📋 Playlists
           </button>
+          <button
+            className={sidebarTab === 'downloads' ? 'active' : ''}
+            onClick={() => setSidebarTab('downloads')}
+          >
+            ⬇️ Downloads
+          </button>
         </nav>
         <div className="user-actions">
           {currentUser ? (
@@ -301,7 +308,7 @@ export default function App() {
                 formatDate={formatDate}
               />
             </>
-          ) : (
+          ) : sidebarTab === 'playlists' ? (
             <PlaylistPanel
               playlists={playlists}
               selectedPlaylistId={selectedPlaylistId}
@@ -311,6 +318,12 @@ export default function App() {
               onPlayPlaylist={handlePlayPlaylist}
               apiBase={API_BASE}
               authToken={authToken}
+            />
+          ) : (
+            <SubscriptionsManager
+              apiBase={API_BASE}
+              authToken={authToken}
+              onToast={showToast}
             />
           )}
         </aside>

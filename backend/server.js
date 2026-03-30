@@ -14,6 +14,7 @@ const filesRouter = require('./routes/files');
 const authRouter = require('./routes/auth');
 const playlistsRouter = require('./routes/playlists');
 const chunksRouter = require('./routes/chunks');
+const { router: subscriptionsRouter } = require('./routes/subscriptions');
 
 const app = express();
 const server = http.createServer(app);
@@ -34,6 +35,7 @@ app.use('/api', filesRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/playlists', playlistsRouter);
 app.use('/api/chunks', chunksRouter);
+app.use('/api/subscriptions', subscriptionsRouter);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -59,6 +61,7 @@ app.use((err, req, res, next) => {
 async function start() {
   try {
     await initDB();
+    require('./scheduler');
     server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
