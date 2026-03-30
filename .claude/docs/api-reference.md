@@ -21,6 +21,15 @@ Base path: `/api`
 | `GET` | `/api/files/:id/download` | Yes | Stream file (supports Range header) |
 | `DELETE` | `/api/files/:id` | Yes | Delete file |
 
+## Subscriptions
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/subscriptions` | Yes | List user's channel subscriptions |
+| `POST` | `/api/subscriptions` | Yes | Add subscription `{ channelUrl, channelName? }` |
+| `DELETE` | `/api/subscriptions/:id` | Yes | Remove subscription (own only) |
+| `POST` | `/api/subscriptions/download-url` | Yes | Download video by URL `{ videoUrl }` — returns immediately, runs in background |
+
 ## Playlists
 
 | Method | Path | Auth | Description |

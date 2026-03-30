@@ -9,6 +9,18 @@
 - **No JWT** — Auth uses random 64-char hex tokens stored in the `sessions` table. Token validity is checked on every request by querying `sessions JOIN users WHERE token = $1 AND expiresat > NOW()`.
 - **Error handling** — Controllers call `next(err)` for unexpected errors. 4xx errors return `res.status(N).json({ error: 'message' })` directly. The global handler in `server.js` catches everything else.
 
+## Linting
+
+ESLint is configured in `frontend/.eslintrc.cjs` with `eslint:recommended`, `plugin:react/recommended`, `plugin:react/jsx-runtime`, and `plugin:react-hooks/recommended`. `react/prop-types` is disabled.
+
+Run from `frontend/`:
+```bash
+npm run lint        # check
+npm run lint:fix    # auto-fix
+```
+
+The lint scripts pass `--ext .js,.jsx` so ESLint scans JSX files. Without that flag, ESLint silently skips them.
+
 ## Adding New Features
 
 1. Add any new tables to the `initDB()` block in `db.js` using `CREATE TABLE IF NOT EXISTS`.

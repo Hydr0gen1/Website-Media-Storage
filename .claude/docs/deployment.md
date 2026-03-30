@@ -30,6 +30,14 @@ docker compose down -v
 | `PORT`        | No       | `3001`       |                                          |
 | `NODE_ENV`    | No       | —            | Set to `production` to serve React build |
 
+## yt-dlp
+
+`yt-dlp` and `ffmpeg` are installed in the Docker image at build time. They are **not** available in the local dev environment — the download endpoints will fail if you call them outside Docker unless you install both tools manually.
+
+- yt-dlp binary: `/usr/local/bin/yt-dlp` (downloaded from GitHub releases during image build)
+- Downloads land in `/app/uploads/user_<id>/` inside the container
+- The daily scheduler runs at midnight (server time) — it only fires inside Docker where the process is long-running
+
 ## Hosting
 
 - Deployed on a home server (UbuntuBeast).

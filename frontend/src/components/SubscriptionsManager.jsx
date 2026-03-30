@@ -5,72 +5,74 @@ export default function SubscriptionsManager({ apiBase, authToken, onToast }) {
   const [subscriptions, setSubscriptions] = useState([]);
   const [channelUrl, setChannelUrl] = useState('');
   const [channelName, setChannelName] = useState('');
-  const [downloadUrl, setDownloadUrl] = useState('');
-  const [adding, setAdding] = useState(false);
+  const [videoUrl, setVideoUrl] = useState('');
+  const [addingChannel, setAddingChannel] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+
+  const authHeaders = () => ({ Authorization: `Bearer ${authToken}` });
 
   const fetchSubscriptions = useCallback(async () => {
     try {
-      const res = await axios.get(`${apiBase}/subscriptions`, {
+      const { data } = await axios.get(`${apiBase}/subscriptions`, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
-      setSubscriptions(res.data);
+      setSubscriptions(data);
     } catch (err) {
       onToast(err.response?.data?.error || 'Failed to load subscriptions', 'error');
     }
   }, [apiBase, authToken, onToast]);
 
   useEffect(() => {
-    fetchSubscriptions();
-  }, [fetchSubscriptions]);
+    if (authToken) fetchSubscriptions();
+  }, [authToken, fetchSubscriptions]);
 
-  async function handleAddSubscription(e) {
+  async function handleAddChannel(e) {
     e.preventDefault();
     if (!channelUrl.trim()) return;
-    setAdding(true);
+    setAddingChannel(true);
     try {
       await axios.post(
         `${apiBase}/subscriptions`,
         { channelUrl: channelUrl.trim(), channelName: channelName.trim() || undefined },
-        { headers: { Authorization: `Bearer ${authToken}` } }
+        { headers: authHeaders() }
       );
       setChannelUrl('');
       setChannelName('');
-      onToast('Subscription added', 'success');
-      fetchSubscriptions();
+      onToast('Channel added! Next check runs at midnight.');
+      await fetchSubscriptions();
     } catch (err) {
-      onToast(err.response?.data?.error || 'Failed to add subscription', 'error');
+      onToast(err.response?.data?.error || 'Failed to add channel', 'error');
     } finally {
-      setAdding(false);
+      setAddingChannel(false);
     }
   }
 
-  async function handleDelete(id) {
+  async function handleDelete(sub) {
     try {
-      await axios.delete(`${apiBase}/subscriptions/${id}`, {
-        headers: { Authorization: `Bearer ${authToken}` },
+      await axios.delete(`${apiBase}/subscriptions/${sub.id}`, {
+        headers: authHeaders(),
       });
-      setDeleteConfirm(null);
-      onToast('Subscription removed', 'success');
-      fetchSubscriptions();
+      setConfirmDelete(null);
+      onToast('Subscription removed');
+      await fetchSubscriptions();
     } catch (err) {
       onToast(err.response?.data?.error || 'Failed to remove subscription', 'error');
     }
   }
 
-  async function handleDownloadUrl(e) {
+  async function handleDownload(e) {
     e.preventDefault();
-    if (!downloadUrl.trim()) return;
+    if (!videoUrl.trim()) return;
     setDownloading(true);
     try {
       await axios.post(
         `${apiBase}/subscriptions/download-url`,
-        { url: downloadUrl.trim() },
-        { headers: { Authorization: `Bearer ${authToken}` } }
+        { videoUrl: videoUrl.trim() },
+        { headers: authHeaders() }
       );
-      setDownloadUrl('');
-      onToast('Download started in background', 'success');
+      setVideoUrl('');
+      onToast('Download started! Check your library in a few minutes.');
     } catch (err) {
       onToast(err.response?.data?.error || 'Failed to start download', 'error');
     } finally {
@@ -80,75 +82,104 @@ export default function SubscriptionsManager({ apiBase, authToken, onToast }) {
 
   return (
     <div className="subscriptions-manager">
-      <section className="sub-section">
-        <h3>Download Video / Audio</h3>
-        <form onSubmit={handleDownloadUrl} className="sub-form">
+      {/* ── Add Channel ─────────────────────────────────────────── */}
+      <div className="subs-section">
+        <h3 className="subs-heading">Add Channel</h3>
+        <form className="subs-form" onSubmit={handleAddChannel}>
           <input
+            className="subs-input"
             type="url"
-            placeholder="YouTube or other URL"
-            value={downloadUrl}
-            onChange={e => setDownloadUrl(e.target.value)}
-            required
-          />
-          <button type="submit" disabled={downloading}>
-            {downloading ? 'Starting...' : 'Download'}
-          </button>
-        </form>
-      </section>
-
-      <section className="sub-section">
-        <h3>Channel Subscriptions</h3>
-        <form onSubmit={handleAddSubscription} className="sub-form">
-          <input
-            type="url"
-            placeholder="Channel URL"
+            placeholder="YouTube channel URL"
             value={channelUrl}
-            onChange={e => setChannelUrl(e.target.value)}
+            onChange={(e) => setChannelUrl(e.target.value)}
             required
           />
           <input
+            className="subs-input"
             type="text"
             placeholder="Channel name (optional)"
             value={channelName}
-            onChange={e => setChannelName(e.target.value)}
+            onChange={(e) => setChannelName(e.target.value)}
           />
-          <button type="submit" disabled={adding}>
-            {adding ? 'Adding...' : 'Subscribe'}
+          <button className="btn btn-primary" type="submit" disabled={addingChannel}>
+            {addingChannel ? 'Adding…' : 'Subscribe'}
           </button>
         </form>
+      </div>
 
+      {/* ── My Subscriptions ────────────────────────────────────── */}
+      <div className="subs-section">
+        <h3 className="subs-heading">
+          My Subscriptions
+          <span className="subs-hint">New uploads checked daily at midnight</span>
+        </h3>
         {subscriptions.length === 0 ? (
-          <p className="empty-state">No subscriptions yet.</p>
+          <p className="subs-empty">No subscriptions yet.</p>
         ) : (
-          <ul className="sub-list">
-            {subscriptions.map(sub => (
-              <li key={sub.id} className="sub-item">
-                <div className="sub-info">
-                  <span className="sub-name">{sub.channel_name || sub.channel_url}</span>
-                  {sub.channel_name && (
-                    <span className="sub-url">{sub.channel_url}</span>
-                  )}
-                </div>
-                {deleteConfirm === sub.id ? (
-                  <span className="sub-confirm">
-                    Remove?{' '}
-                    <button onClick={() => handleDelete(sub.id)}>Yes</button>{' '}
-                    <button onClick={() => setDeleteConfirm(null)}>No</button>
+          <ul className="subs-list">
+            {subscriptions.map((sub) => (
+              <li key={sub.id} className="subs-item">
+                <div className="subs-item-info">
+                  <span className="subs-item-name">
+                    {sub.channel_name || sub.channel_url}
                   </span>
-                ) : (
-                  <button
-                    className="sub-delete"
-                    onClick={() => setDeleteConfirm(sub.id)}
-                    title="Remove subscription"
-                  >
-                    &times;
-                  </button>
-                )}
+                  {sub.channel_name && (
+                    <span className="subs-item-url">{sub.channel_url}</span>
+                  )}
+                  <span className="subs-item-date">
+                    Since {new Date(sub.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+                <button
+                  className="btn btn-danger btn-sm"
+                  onClick={() => setConfirmDelete(sub)}
+                >
+                  Remove
+                </button>
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </div>
+
+      {/* ── Download by URL ─────────────────────────────────────── */}
+      <div className="subs-section">
+        <h3 className="subs-heading">Download Video</h3>
+        <form className="subs-form" onSubmit={handleDownload}>
+          <input
+            className="subs-input"
+            type="url"
+            placeholder="YouTube video URL"
+            value={videoUrl}
+            onChange={(e) => setVideoUrl(e.target.value)}
+            required
+          />
+          <button className="btn btn-primary" type="submit" disabled={downloading}>
+            {downloading ? 'Starting…' : 'Download Video'}
+          </button>
+        </form>
+      </div>
+
+      {/* ── Confirm delete dialog ────────────────────────────────── */}
+      {confirmDelete && (
+        <div className="modal-overlay" onClick={() => setConfirmDelete(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Remove Subscription?</h3>
+            <p>
+              Stop following &quot;{confirmDelete.channel_name || confirmDelete.channel_url}
+              &quot;? Already downloaded files are kept.
+            </p>
+            <div className="modal-actions">
+              <button className="btn btn-danger" onClick={() => handleDelete(confirmDelete)}>
+                Remove
+              </button>
+              <button className="btn btn-ghost" onClick={() => setConfirmDelete(null)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -28,7 +28,7 @@ export default function App() {
   // ── Files ────────────────────────────────────────────────────────────
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [typeFilter, setTypeFilter] = useState('all');
+  const [typeFilter] = useState('all');
   const [sort, setSort] = useState({ field: 'date', order: 'desc' });
   const [activeFile, setActiveFile] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -42,7 +42,7 @@ export default function App() {
   const [playlists, setPlaylists] = useState([]);
   const [selectedPlaylistId, setSelectedPlaylistId] = useState(null); // detail view
   const [playlistDetail, setPlaylistDetail] = useState(null);
-  const [sidebarTab, setSidebarTab] = useState('files'); // 'files' | 'playlists' | 'downloads'
+  const [sidebarTab, setSidebarTab] = useState('files'); // 'files' | 'playlists'
 
   // ── Player playlist state ─────────────────────────────────────────────────
   const [activePlaylist, setActivePlaylist] = useState(null); // { playlist, items, currentIndex }
@@ -308,13 +308,7 @@ export default function App() {
                 formatDate={formatDate}
               />
             </>
-          ) : sidebarTab === 'downloads' ? (
-            <SubscriptionsManager
-              apiBase={API_BASE}
-              authToken={authToken}
-              onToast={showToast}
-            />
-          ) : (
+          ) : sidebarTab === 'playlists' ? (
             <PlaylistPanel
               playlists={playlists}
               selectedPlaylistId={selectedPlaylistId}
@@ -324,6 +318,12 @@ export default function App() {
               onPlayPlaylist={handlePlayPlaylist}
               apiBase={API_BASE}
               authToken={authToken}
+            />
+          ) : (
+            <SubscriptionsManager
+              apiBase={API_BASE}
+              authToken={authToken}
+              onToast={showToast}
             />
           )}
         </aside>
@@ -397,7 +397,7 @@ export default function App() {
         <div className="modal-overlay" onClick={() => setConfirmDelete(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h3>Delete File?</h3>
-            <p>Are you sure you want to delete "{confirmDelete.originalFilename}"?</p>
+            <p>Are you sure you want to delete &quot;{confirmDelete.originalFilename}&quot;?</p>
             <div className="modal-actions">
               <button className="btn btn-danger" onClick={handleDeleteConfirm}>
                 Delete

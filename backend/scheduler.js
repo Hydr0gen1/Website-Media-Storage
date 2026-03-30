@@ -1,53 +1,71 @@
+const schedule = require('node-schedule');
 const path = require('path');
 const fs = require('fs');
 const { execFile } = require('child_process');
-const schedule = require('node-schedule');
 const { pool } = require('./db');
 const { registerDownloadedFile } = require('./routes/subscriptions');
 
-const UPLOADS_DIR = path.join(__dirname, 'uploads');
+// Run yt-dlp for a channel subscription and register any new files.
+async function processSubscription(sub) {
+  const userDir = path.join(__dirname, 'uploads', `user_${sub.user_id}`);
+  fs.mkdirSync(userDir, { recursive: true });
 
-async function checkSubscriptions() {
-  console.log('[scheduler] Running daily subscription check');
+  const outputTemplate = path.join(userDir, '%(title)s.%(ext)s');
+  const args = [
+    sub.channel_url,
+    '--dateafter', 'now-7d',
+    '-o', outputTemplate,
+    '-f', 'best[ext=mp4]/best',
+    '--merge-output-format', 'mp4',
+    '--quiet',
+    '--no-overwrites',
+  ];
+
+  // Snapshot directory before download to detect new files
+  const before = new Set(
+    fs.existsSync(userDir) ? fs.readdirSync(userDir) : []
+  );
+
+  await new Promise((resolve) => {
+    execFile('yt-dlp', args, { timeout: 1800000 }, (err, _stdout, stderr) => {
+      if (err) {
+        console.error(
+          `[scheduler] subscription ${sub.id} (user ${sub.user_id}) failed:`,
+          stderr || err.message
+        );
+      }
+      resolve();
+    });
+  });
+
+  // Register files that weren't there before
+  const after = fs.existsSync(userDir) ? fs.readdirSync(userDir) : [];
+  const newFiles = after.filter(f => !before.has(f));
+
+  for (const filename of newFiles) {
+    const absPath = path.join(userDir, filename);
+    await registerDownloadedFile(sub.user_id, filename, filename, absPath);
+    console.log(`[scheduler] registered: user ${sub.user_id} — ${filename}`);
+  }
+}
+
+// Daily job at midnight
+schedule.scheduleJob('0 0 * * *', async () => {
+  console.log('[scheduler] Starting daily subscription check...');
   let subs;
   try {
-    const result = await pool.query('SELECT * FROM subscriptions');
+    const result = await pool.query('SELECT * FROM subscriptions ORDER BY user_id');
     subs = result.rows;
   } catch (err) {
     console.error('[scheduler] Failed to fetch subscriptions:', err.message);
     return;
   }
 
+  console.log(`[scheduler] Processing ${subs.length} subscription(s)`);
   for (const sub of subs) {
-    try {
-      const before = new Set(fs.readdirSync(UPLOADS_DIR));
-      await new Promise((resolve, reject) => {
-        execFile(
-          'yt-dlp',
-          [
-            '--dateafter', 'now-7d',
-            '--no-overwrites',
-            '-o', path.join(UPLOADS_DIR, '%(id)s.%(ext)s'),
-            sub.channel_url,
-          ],
-          { timeout: 30 * 60 * 1000 },
-          (err) => (err ? reject(err) : resolve())
-        );
-      });
-      const after = fs.readdirSync(UPLOADS_DIR);
-      const newFiles = after.filter(f => !before.has(f) && !f.startsWith('.'));
-      for (const storedName of newFiles) {
-        const absPath = path.join(UPLOADS_DIR, storedName);
-        const originalName = storedName.replace(/^[^.]+\./, `${sub.channel_name || 'download'}.`);
-        await registerDownloadedFile(sub.user_id, storedName, originalName, absPath);
-      }
-    } catch (err) {
-      console.error(`[scheduler] Error processing subscription ${sub.id}:`, err.message);
-    }
+    await processSubscription(sub);
   }
-}
+  console.log('[scheduler] Daily check complete');
+});
 
-// Run daily at midnight
-schedule.scheduleJob('0 0 * * *', checkSubscriptions);
-
-console.log('[scheduler] Daily subscription check scheduled');
+console.log('[scheduler] Daily subscription job scheduled (runs at midnight)');
