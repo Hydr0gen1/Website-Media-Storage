@@ -18,7 +18,7 @@ pool.on('error', (err) => {
 async function initDB() {
   const client = await pool.connect();
   try {
-    // users must exist before files (files.userid FK)
+    // users must exist before files (files.user_id FK)
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -76,13 +76,46 @@ async function initDB() {
       )
     `);
 
-    // Add indexes for performance
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS subscriptions (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        channel_url VARCHAR(500) NOT NULL,
+        channel_name VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, channel_url)
+      )
+    `);
+
+    // ── Migrations ────────────────────────────────────────────────────────────
+    // Rename files.userid → files.user_id if the table was created with the old name
+    await client.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'files' AND column_name = 'userid'
+        ) THEN
+          ALTER TABLE files RENAME COLUMN userid TO user_id;
+        END IF;
+      END
+      $$
+    `);
+
+    // Add user_id to subscriptions if it was somehow created without it
+    await client.query(`
+      ALTER TABLE IF EXISTS subscriptions
+      ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE
+    `);
+
+    // ── Indexes ───────────────────────────────────────────────────────────────
     await client.query(`CREATE INDEX IF NOT EXISTS idx_files_userid ON files(user_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_sessions_userid ON sessions(user_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_playlists_userid ON playlists(user_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_playlistitems_playlistid ON playlist_items(playlist_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_playlistitems_fileid ON playlist_items(file_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_subscriptions_userid ON subscriptions(user_id)`);
 
     await client.query('DELETE FROM sessions WHERE expires_at < NOW()');
 

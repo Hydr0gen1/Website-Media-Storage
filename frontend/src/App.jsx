@@ -6,6 +6,7 @@ import MediaPlayer from './components/MediaPlayer';
 import AuthModal from './components/AuthModal';
 import PlaylistPanel from './components/PlaylistPanel';
 import PlaylistView from './components/PlaylistView';
+import SubscriptionsManager from './components/SubscriptionsManager';
 
 const API_BASE = '/api';
 
@@ -41,7 +42,7 @@ export default function App() {
   const [playlists, setPlaylists] = useState([]);
   const [selectedPlaylistId, setSelectedPlaylistId] = useState(null); // detail view
   const [playlistDetail, setPlaylistDetail] = useState(null);
-  const [sidebarTab, setSidebarTab] = useState('files'); // 'files' | 'playlists'
+  const [sidebarTab, setSidebarTab] = useState('files'); // 'files' | 'playlists' | 'downloads'
 
   // ── Player playlist state ─────────────────────────────────────────────────
   const [activePlaylist, setActivePlaylist] = useState(null); // { playlist, items, currentIndex }
@@ -251,6 +252,12 @@ export default function App() {
           >
             📋 Playlists
           </button>
+          <button
+            className={sidebarTab === 'downloads' ? 'active' : ''}
+            onClick={() => setSidebarTab('downloads')}
+          >
+            ⬇️ Downloads
+          </button>
         </nav>
         <div className="user-actions">
           {currentUser ? (
@@ -301,6 +308,12 @@ export default function App() {
                 formatDate={formatDate}
               />
             </>
+          ) : sidebarTab === 'downloads' ? (
+            <SubscriptionsManager
+              apiBase={API_BASE}
+              authToken={authToken}
+              onToast={showToast}
+            />
           ) : (
             <PlaylistPanel
               playlists={playlists}

@@ -13,8 +13,12 @@ RUN npm run build
 # ── Stage 2: Runtime ──────────────────────────────────────────────────────────
 FROM node:20-alpine AS runtime
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
+# Install dumb-init and ffmpeg; try to install yt-dlp but don't fail the build if unavailable
+RUN apk add --no-cache dumb-init ffmpeg wget && \
+    ( wget -qO /usr/local/bin/yt-dlp \
+        https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
+      && chmod +x /usr/local/bin/yt-dlp \
+    ) || echo "Warning: yt-dlp download failed — download/subscribe features will be unavailable"
 
 WORKDIR /app
 
