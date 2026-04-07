@@ -102,6 +102,34 @@ async function initDB() {
       $$
     `);
 
+    // Rename sessions.userid → sessions.user_id if the table was created with the old name
+    await client.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'sessions' AND column_name = 'userid'
+        ) THEN
+          ALTER TABLE sessions RENAME COLUMN userid TO user_id;
+        END IF;
+      END
+      $$
+    `);
+
+    // Rename playlists.userid → playlists.user_id if the table was created with the old name
+    await client.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'playlists' AND column_name = 'userid'
+        ) THEN
+          ALTER TABLE playlists RENAME COLUMN userid TO user_id;
+        END IF;
+      END
+      $$
+    `);
+
     // Add user_id to subscriptions if it was somehow created without it
     await client.query(`
       ALTER TABLE IF EXISTS subscriptions
