@@ -416,11 +416,11 @@ export default function App() {
       )}
 
       {confirmDelete && (
-        <div className="modal-overlay" onClick={() => setConfirmDelete(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="overlay" onClick={() => setConfirmDelete(null)}>
+          <div className="dialog" onClick={(e) => e.stopPropagation()}>
             <h3>Delete File?</h3>
             <p>Are you sure you want to delete &quot;{confirmDelete.originalFilename}&quot;?</p>
-            <div className="modal-actions">
+            <div className="dialog-actions">
               <button className="btn btn-danger" onClick={handleDeleteConfirm}>
                 Delete
               </button>
@@ -432,7 +432,7 @@ export default function App() {
         </div>
       )}
 
-      <div className="toasts">
+      <div className="toast-container">
         {toasts.map((t) => (
           <div key={t.id} className={`toast toast-${t.type}`}>
             {t.message}

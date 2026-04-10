@@ -93,6 +93,57 @@ body {
   font-size: 1.5rem;
 }
 
+.logo {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-shrink: 0;
+}
+
+.logo-icon {
+  font-size: 1.5rem;
+}
+
+.logo-text {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.nav-tabs {
+  display: flex;
+  gap: 2px;
+  flex: 1;
+  margin-left: var(--spacing-lg);
+}
+
+.nav-tabs button {
+  background: transparent;
+  border: none;
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition);
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+}
+
+.nav-tabs button:hover {
+  color: var(--text-primary);
+}
+
+.nav-tabs button.active {
+  color: var(--accent-primary);
+  border-bottom-color: var(--accent-primary);
+}
+
+.user-actions {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 .app-main {
   flex: 1;
   display: grid;
@@ -209,6 +260,28 @@ body {
 .btn-danger:hover {
   background: rgba(255, 59, 48, 0.1);
   border-color: rgba(255, 59, 48, 0.3);
+}
+
+.btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+}
+
+.btn-secondary {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  padding: 0.375rem 0.625rem;
+  font-size: 0.8125rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
 }
 
 .btn-confirm-delete {
@@ -599,6 +672,14 @@ body {
 
 .player-content {
   padding: var(--spacing-lg);
+  position: relative;
+}
+
+.player-close {
+  position: absolute;
+  top: var(--spacing-sm);
+  right: var(--spacing-sm);
+  z-index: 10;
 }
 
 .player-now-playing {

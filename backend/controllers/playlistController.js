@@ -152,8 +152,11 @@ async function addItem(req, res, next) {
     );
     if (!pl.rows.length) return res.status(404).json({ error: 'Playlist not found' });
 
-    // Verify file exists
-    const file = await pool.query('SELECT id FROM files WHERE id = $1', [fileId]);
+    // Verify file exists and belongs to this user
+    const file = await pool.query(
+      'SELECT id FROM files WHERE id = $1 AND user_id = $2',
+      [fileId, req.user.id]
+    );
     if (!file.rows.length) return res.status(404).json({ error: 'File not found' });
 
     // Next position = current count
