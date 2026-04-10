@@ -11,6 +11,18 @@ Base path: `/api`
 | `GET` | `/api/auth/me` | Yes | Returns current user |
 | `POST` | `/api/auth/logout` | Yes | Invalidates session token |
 
+## OAuth
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/auth/oauth/google` | No | Redirects to Google OAuth consent screen |
+| `GET` | `/api/auth/oauth/google/callback` | No | Google OAuth callback (handled by server) |
+| `GET` | `/api/auth/oauth/github` | No | Redirects to GitHub OAuth consent screen |
+| `GET` | `/api/auth/oauth/github/callback` | No | GitHub OAuth callback (handled by server) |
+| `GET` | `/api/auth/oauth/apple` | No | Redirects to Apple Sign In |
+| `POST` | `/api/auth/oauth/apple/callback` | No | Apple OAuth callback (form_post) |
+| `POST` | `/api/auth/oauth/exchange` | No | Exchange one-time auth code for session token `{ code }` → `{ token, user }` |
+
 ## Files
 
 | Method | Path | Auth | Description |

@@ -14,8 +14,12 @@ const filesRouter = require('./routes/files');
 const authRouter = require('./routes/auth');
 const playlistsRouter = require('./routes/playlists');
 const { router: subscriptionsRouter } = require('./routes/subscriptions');
+const oauthRouter = require('./routes/oauth');
 
 const app = express();
+// Trust Caddy (one proxy hop) so express-rate-limit sees real client IPs
+// via X-Forwarded-For and req.protocol reflects HTTPS correctly.
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 server.timeout = 600000;        // 10 minutes — covers finalize of large uploads
 server.keepAliveTimeout = 620000;
@@ -24,6 +28,18 @@ const PORT = process.env.PORT || 3001;
 if (process.env.NODE_ENV !== 'production') {
   app.use(cors({ origin: 'http://localhost:5173' }));
 }
+
+// Security headers
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+  next();
+});
+
 app.use(express.json());
 
 // Serve uploaded files statically (fallback)
@@ -31,6 +47,9 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // API routes
 app.use('/api', filesRouter);
+// Mount oauth before auth — /api/auth is a prefix match that would otherwise
+// catch /api/auth/oauth/* first and run the auth rate-limiter on every OAuth request.
+app.use('/api/auth/oauth', oauthRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/playlists', playlistsRouter);
 app.use('/api/subscriptions', subscriptionsRouter);

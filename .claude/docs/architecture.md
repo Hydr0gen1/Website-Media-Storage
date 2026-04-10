@@ -24,10 +24,11 @@
 
 ## Backend (`backend/`)
 
-- **`server.js`** — Express entry point. Loads dotenv, validates `DB_PASSWORD`, mounts routes, serves the React build from `public/` in production.
+- **`server.js`** — Express entry point. Loads dotenv, validates `DB_PASSWORD`, sets `trust proxy` for Caddy, adds security headers (X-Content-Type-Options, X-Frame-Options, Referrer-Policy, HSTS), mounts routes, serves the React build from `public/` in production.
 - **`db.js`** — Single `pg.Pool` instance exported as `{ pool, initDB }`. `initDB()` runs all `CREATE TABLE IF NOT EXISTS` statements on startup — no migration tool needed.
 - **`middleware/auth.js`** — `optionalAuth` silently attaches `req.user` from a valid DB session. `requireAuth` rejects 401 if `req.user` is missing. Use `optionalAuth, requireAuth` together on protected routes.
 - **`controllers/`** — Pure async handler functions, no Express boilerplate. Errors forwarded via `next(err)` to the global handler in `server.js`.
+- **`routes/oauth.js`** — OAuth 2.0 flows for Google, GitHub, and Apple. Uses native `fetch` (no Passport). Anti-CSRF state in an in-memory Map (10-min TTL). OAuth callbacks issue a one-time auth code (60-sec TTL) that the frontend exchanges for a real session token via `POST /api/auth/oauth/exchange` — the token never appears in the URL.
 - **`scheduler.js`** — Loaded by `server.js` at startup. Uses `node-schedule` to run a daily midnight job: fetches all rows from `subscriptions`, runs `yt-dlp` per channel (`--dateafter now-7d`), and registers any new files via `registerDownloadedFile()` from `routes/subscriptions.js`.
 
 ## PostgreSQL Schema
@@ -42,6 +43,7 @@ Tables (all created in `db.js`):
 | `playlists` | id, userid (FK), name, type (audio\|video), description, createdat, updatedat |
 | `playlistitems` | id, playlistid (FK), fileid (FK), position, createdat |
 | `subscriptions` | id, user_id (FK), channel_url, channel_name, created_at — UNIQUE(user_id, channel_url) |
+| `oauth_accounts` | id, user_id (FK), provider (google\|github\|apple), provider_id — UNIQUE(provider, provider_id) |
 
 PostgreSQL lowercases all unquoted identifiers. Use `formatFileRecord()` / `formatPlaylist()` / `formatItem()` helpers in controllers to map `f.originalfilename → originalFilename` etc.
 
@@ -52,7 +54,8 @@ PostgreSQL lowercases all unquoted identifiers. Use `formatFileRecord()` / `form
 - **`components/PlaylistView.jsx`** — Detail view for a single playlist. Receives `playlist` (full object with `.items[]`), `allFiles`, `apiBase`, `authToken`, `onBack`, `onPlay(playlist, items)`, `onPlaylistUpdated(updatedPlaylist)`. Makes its own axios calls for add/remove/reorder, then calls `onPlaylistUpdated` with the refreshed data.
 - **`components/MediaPlayer.jsx`** — Receives `file`, `playlist` (active playlist state), `apiBase`, `onNext`, `onPrev`, `onTrackEnd`, `onSelectTrack`, `onClose`, `formatBytes`, `formatDate`. Uses `onNext`/`onPrev` for playlist prev/next buttons.
 - **`components/SubscriptionsManager.jsx`** — Renders in the sidebar when the Downloads tab is active. Receives `apiBase`, `authToken`, `onToast`. Three sections: add channel subscription, list/delete subscriptions, download a single video by URL. Makes its own axios calls to `/api/subscriptions`.
-- Auth token stored in `localStorage` key `authToken`. On mount, App calls `GET /api/auth/me` to restore the session.
+- **`components/AuthModal.jsx`** — Login/register modal with OAuth buttons (Google, GitHub, Apple) above the local auth form. OAuth buttons are plain `<a>` links that navigate to `/api/auth/oauth/{provider}`.
+- Auth token stored in `localStorage` key `authToken`. On mount, App checks for `?auth_code=` (OAuth return) and exchanges it for a token via POST, or calls `GET /api/auth/me` to restore an existing session.
 - Axios is used directly (`import axios from 'axios'`); no wrapper. Auth header is built inline: `{ Authorization: \`Bearer ${authToken}\` }`.
 
 ## Docker Notes

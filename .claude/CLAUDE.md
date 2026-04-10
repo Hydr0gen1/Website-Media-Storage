@@ -34,6 +34,16 @@ cd frontend && npm run build
 | `DB_USER`     | No       | `postgres`   |                                          |
 | `PORT`        | No       | `3001`       |                                          |
 | `NODE_ENV`    | No       | —            | Set to `production` to serve React build |
+| `OAUTH_CALLBACK_BASE_URL` | No | `http://localhost:3001` | Base URL for OAuth provider callbacks |
+| `FRONTEND_URL` | No | `http://localhost:5173` | Frontend URL in dev (ignored in production) |
+| `GOOGLE_CLIENT_ID` | No | — | Google OAuth client ID |
+| `GOOGLE_CLIENT_SECRET` | No | — | Google OAuth client secret |
+| `GITHUB_CLIENT_ID` | No | — | GitHub OAuth client ID |
+| `GITHUB_CLIENT_SECRET` | No | — | GitHub OAuth client secret |
+| `APPLE_CLIENT_ID` | No | — | Apple Sign In service ID |
+| `APPLE_TEAM_ID` | No | — | Apple developer team ID |
+| `APPLE_KEY_ID` | No | — | Apple private key ID |
+| `APPLE_PRIVATE_KEY` | No | — | Apple ES256 private key (use `\n` for newlines) |
 
 ## Further Reading
 

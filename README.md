@@ -16,6 +16,7 @@ A self-hosted media storage web application for uploading, organizing, and strea
 
 ### Phase 2 — Auth, Playlists & Auto-Sort
 - **User accounts** — register and sign in with username + password (bcrypt hashed)
+- **OAuth sign-in** — Google, GitHub, and Apple OAuth 2.0 with secure one-time code exchange (token never exposed in URL)
 - **Session tokens** — 30-day sessions stored in the database, persisted in `localStorage`
 - **Playlists** — create audio or video playlists, add/remove files, reorder tracks
 - **Playlist playback** — queue view in the player with Prev/Next controls and auto-advance on track end
@@ -501,6 +502,24 @@ df -h
 | `POST` | `/api/auth/logout`    | Invalidate session token                     |
 | `GET`  | `/api/auth/me`        | Return current user (requires Bearer token)  |
 
+### OAuth
+
+| Method | Endpoint                         | Description                                      |
+|--------|----------------------------------|--------------------------------------------------|
+| `GET`  | `/api/auth/oauth/google`         | Redirect to Google sign-in                       |
+| `GET`  | `/api/auth/oauth/github`         | Redirect to GitHub sign-in                       |
+| `GET`  | `/api/auth/oauth/apple`          | Redirect to Apple sign-in                        |
+| `POST` | `/api/auth/oauth/exchange`       | Exchange one-time code for session token `{ code }` |
+
+### Subscriptions
+
+| Method   | Endpoint                         | Description                                      |
+|----------|----------------------------------|--------------------------------------------------|
+| `GET`    | `/api/subscriptions`             | List user's channel subscriptions                |
+| `POST`   | `/api/subscriptions`             | Add channel subscription `{ channelUrl }`        |
+| `DELETE` | `/api/subscriptions/:id`         | Remove subscription                              |
+| `POST`   | `/api/subscriptions/download-url`| Download video by URL (background job)           |
+
 ### Playlists (all require `Authorization: Bearer <token>`)
 
 | Method   | Endpoint                        | Description                              |
@@ -543,12 +562,16 @@ npm run dev
 │   ├── db.js                        # PostgreSQL pool + auto-schema init
 │   ├── middleware/
 │   │   └── auth.js                  # optionalAuth / requireAuth middleware
+│   ├── scheduler.js                 # Daily yt-dlp subscription downloads
 │   ├── routes/
 │   │   ├── files.js                 # Multer config + file routes
 │   │   ├── auth.js                  # Auth routes
-│   │   └── playlists.js             # Playlist routes (all require auth)
+│   │   ├── oauth.js                 # Google/GitHub/Apple OAuth flows
+│   │   ├── playlists.js             # Playlist routes (all require auth)
+│   │   └── subscriptions.js         # YouTube subscription + download routes
 │   ├── controllers/
 │   │   ├── fileController.js        # Upload, list (sort/filter), delete, stream
+│   │   ├── chunkController.js       # Chunked upload support for large files
 │   │   ├── authController.js        # Register, login, logout, me
 │   │   └── playlistController.js    # Playlist CRUD + item management
 │   └── .env.example
@@ -557,12 +580,13 @@ npm run dev
 │   │   ├── App.jsx                  # Root component, all state management
 │   │   ├── App.css                  # Full design system (orange dark mode)
 │   │   └── components/
-│   │       ├── UploadZone.jsx       # Drag-and-drop upload with progress
+│   │       ├── ChunkedUploadZone.jsx # Chunked drag-and-drop upload with progress
 │   │       ├── FileList.jsx         # File list with sort controls + playlist menu
 │   │       ├── MediaPlayer.jsx      # Video/audio player with playlist queue
-│   │       ├── AuthModal.jsx        # Login / register modal
+│   │       ├── AuthModal.jsx        # Login / register modal with OAuth buttons
 │   │       ├── PlaylistPanel.jsx    # Playlist list + create form
-│   │       └── PlaylistView.jsx     # Playlist detail, reorder, add files
+│   │       ├── PlaylistView.jsx     # Playlist detail, reorder, add files
+│   │       └── SubscriptionsManager.jsx # YouTube subscriptions + URL downloads
 │   ├── vite.config.js
 │   └── index.html
 ├── Dockerfile                       # Multi-stage build (frontend → backend/public)

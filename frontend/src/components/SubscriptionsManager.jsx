@@ -5,9 +5,7 @@ export default function SubscriptionsManager({ apiBase, authToken, onToast }) {
   const [subscriptions, setSubscriptions] = useState([]);
   const [channelUrl, setChannelUrl] = useState('');
   const [channelName, setChannelName] = useState('');
-  const [videoUrl, setVideoUrl] = useState('');
   const [addingChannel, setAddingChannel] = useState(false);
-  const [downloading, setDownloading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
   const authHeaders = () => authToken ? { Authorization: `Bearer ${authToken}` } : {};
@@ -58,25 +56,6 @@ export default function SubscriptionsManager({ apiBase, authToken, onToast }) {
       await fetchSubscriptions();
     } catch (err) {
       onToast(err.response?.data?.error || 'Failed to remove subscription', 'error');
-    }
-  }
-
-  async function handleDownload(e) {
-    e.preventDefault();
-    if (!videoUrl.trim()) return;
-    setDownloading(true);
-    try {
-      await axios.post(
-        `${apiBase}/subscriptions/download-url`,
-        { videoUrl: videoUrl.trim() },
-        { headers: authHeaders() }
-      );
-      setVideoUrl('');
-      onToast('Download started! Check your library in a few minutes.');
-    } catch (err) {
-      onToast(err.response?.data?.error || 'Failed to start download', 'error');
-    } finally {
-      setDownloading(false);
     }
   }
 
@@ -140,24 +119,6 @@ export default function SubscriptionsManager({ apiBase, authToken, onToast }) {
             ))}
           </ul>
         )}
-      </div>
-
-      {/* ── Download by URL ─────────────────────────────────────── */}
-      <div className="subs-section">
-        <h3 className="subs-heading">Download Video</h3>
-        <form className="subs-form" onSubmit={handleDownload}>
-          <input
-            className="subs-input"
-            type="url"
-            placeholder="YouTube video URL"
-            value={videoUrl}
-            onChange={(e) => setVideoUrl(e.target.value)}
-            required
-          />
-          <button className="btn btn-primary" type="submit" disabled={downloading}>
-            {downloading ? 'Starting…' : 'Download Video'}
-          </button>
-        </form>
       </div>
 
       {/* ── Confirm delete dialog ────────────────────────────────── */}

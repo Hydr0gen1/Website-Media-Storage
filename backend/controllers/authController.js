@@ -65,6 +65,9 @@ async function login(req, res, next) {
     }
 
     const user = result.rows[0];
+    if (!user.password_hash) {
+      return res.status(401).json({ error: 'Invalid username or password' });
+    }
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) {
       return res.status(401).json({ error: 'Invalid username or password' });

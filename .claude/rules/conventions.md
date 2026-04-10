@@ -8,6 +8,8 @@
 - **Streaming** — `GET /api/files/:id/download` handles `Range` headers for seekable playback. Always sets `Accept-Ranges: bytes`.
 - **No JWT** — Auth uses random 64-char hex tokens stored in the `sessions` table. Token validity is checked on every request by querying `sessions JOIN users WHERE token = $1 AND expiresat > NOW()`.
 - **Error handling** — Controllers call `next(err)` for unexpected errors. 4xx errors return `res.status(N).json({ error: 'message' })` directly. The global handler in `server.js` catches everything else.
+- **OAuth flow** — OAuth callbacks issue a one-time authorization code (60-sec TTL, in-memory Map). The frontend exchanges this code via `POST /api/auth/oauth/exchange` to get the real session token. The session token never appears in a URL. Anti-CSRF state parameters use a separate in-memory Map (10-min TTL).
+- **Security headers** — `server.js` sets `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, and `Strict-Transport-Security` (production only). User-supplied URL params rendered in the UI must be sanitized (strip `<>"'&`).
 
 ## Linting
 

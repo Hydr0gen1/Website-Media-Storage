@@ -7,6 +7,7 @@ import AuthModal from './components/AuthModal';
 import PlaylistPanel from './components/PlaylistPanel';
 import PlaylistView from './components/PlaylistView';
 import SubscriptionsManager from './components/SubscriptionsManager';
+import VideoDownloader from './components/VideoDownloader';
 
 const API_BASE = '/api';
 
@@ -99,8 +100,36 @@ export default function App() {
     showToast('Logged out');
   }, [authHeaders, showToast]);
 
-  // ── Restore session on mount ──────────────────────────────────────────────
+  // ── Restore session on mount (also handles OAuth callback params) ────────────
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const authCode = params.get('auth_code');
+    const oauthError = params.get('oauth_error');
+
+    // OAuth code exchange: frontend receives a one-time code and exchanges it
+    // for the real session token via POST (token never appears in the URL).
+    if (authCode) {
+      window.history.replaceState({}, '', window.location.pathname);
+      axios.post(`${API_BASE}/auth/oauth/exchange`, { code: authCode })
+        .then(({ data }) => {
+          localStorage.setItem('authToken', data.token);
+          setAuthToken(data.token);
+          setCurrentUser(data.user);
+          showToast(`Welcome, ${data.user.username}!`);
+        })
+        .catch(() => showToast('Sign-in failed. Please try again.', 'error'));
+      return;
+    }
+
+    if (oauthError) {
+      window.history.replaceState({}, '', window.location.pathname);
+      // Sanitize the error message to prevent XSS via crafted URL params
+      const safeError = oauthError.replace(/[<>"'&]/g, '');
+      showToast(`Sign-in failed: ${safeError || 'Unknown error'}`, 'error');
+      return;
+    }
+
     const token = localStorage.getItem('authToken');
     if (!token) return;
     axios.get(`${API_BASE}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
@@ -109,7 +138,7 @@ export default function App() {
         setAuthToken(token);
       })
       .catch(() => localStorage.removeItem('authToken'));
-  }, []);
+  }, []); // intentionally [] — runs once on mount only
 
   // ── Fetch files ───────────────────────────────────────────────────────────
   const fetchFiles = useCallback(async () => {
@@ -253,10 +282,16 @@ export default function App() {
             📋 Playlists
           </button>
           <button
+            className={sidebarTab === 'download' ? 'active' : ''}
+            onClick={() => setSidebarTab('download')}
+          >
+            🎥 Request
+          </button>
+          <button
             className={sidebarTab === 'downloads' ? 'active' : ''}
             onClick={() => setSidebarTab('downloads')}
           >
-            ⬇️ Downloads
+            ⬇️ Subscriptions
           </button>
         </nav>
         <div className="user-actions">
@@ -318,6 +353,12 @@ export default function App() {
               onPlayPlaylist={handlePlayPlaylist}
               apiBase={API_BASE}
               authToken={authToken}
+            />
+          ) : sidebarTab === 'download' ? (
+            <VideoDownloader
+              apiBase={API_BASE}
+              authToken={authToken}
+              onToast={showToast}
             />
           ) : (
             <SubscriptionsManager
@@ -394,11 +435,11 @@ export default function App() {
       )}
 
       {confirmDelete && (
-        <div className="modal-overlay" onClick={() => setConfirmDelete(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="overlay" onClick={() => setConfirmDelete(null)}>
+          <div className="dialog" onClick={(e) => e.stopPropagation()}>
             <h3>Delete File?</h3>
             <p>Are you sure you want to delete &quot;{confirmDelete.originalFilename}&quot;?</p>
-            <div className="modal-actions">
+            <div className="dialog-actions">
               <button className="btn btn-danger" onClick={handleDeleteConfirm}>
                 Delete
               </button>
@@ -410,7 +451,7 @@ export default function App() {
         </div>
       )}
 
-      <div className="toasts">
+      <div className="toast-container">
         {toasts.map((t) => (
           <div key={t.id} className={`toast toast-${t.type}`}>
             {t.message}
