@@ -7,6 +7,7 @@ import AuthModal from './components/AuthModal';
 import PlaylistPanel from './components/PlaylistPanel';
 import PlaylistView from './components/PlaylistView';
 import SubscriptionsManager from './components/SubscriptionsManager';
+import VideoDownloader from './components/VideoDownloader';
 
 const API_BASE = '/api';
 
@@ -281,10 +282,16 @@ export default function App() {
             📋 Playlists
           </button>
           <button
+            className={sidebarTab === 'download' ? 'active' : ''}
+            onClick={() => setSidebarTab('download')}
+          >
+            🎥 Request
+          </button>
+          <button
             className={sidebarTab === 'downloads' ? 'active' : ''}
             onClick={() => setSidebarTab('downloads')}
           >
-            ⬇️ Downloads
+            ⬇️ Subscriptions
           </button>
         </nav>
         <div className="user-actions">
@@ -346,6 +353,12 @@ export default function App() {
               onPlayPlaylist={handlePlayPlaylist}
               apiBase={API_BASE}
               authToken={authToken}
+            />
+          ) : sidebarTab === 'download' ? (
+            <VideoDownloader
+              apiBase={API_BASE}
+              authToken={authToken}
+              onToast={showToast}
             />
           ) : (
             <SubscriptionsManager
