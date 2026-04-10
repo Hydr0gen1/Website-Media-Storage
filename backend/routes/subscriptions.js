@@ -3,11 +3,48 @@ const { execFile } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const rateLimit = require('express-rate-limit');
 const { pool } = require('../db');
 const { optionalAuth, requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 router.use(optionalAuth, requireAuth);
+
+// Allowed YouTube hostnames — used when accepting user-supplied URLs that are
+// passed to yt-dlp.  Prevents SSRF and yt-dlp argument injection.
+const YOUTUBE_HOSTS = new Set([
+  'www.youtube.com', 'youtube.com', 'youtu.be', 'music.youtube.com',
+]);
+
+function assertYouTubeUrl(raw) {
+  let parsed;
+  try { parsed = new URL(raw); } catch {
+    return 'Must be a valid URL';
+  }
+  if (!YOUTUBE_HOSTS.has(parsed.hostname)) {
+    return 'Only YouTube URLs are supported';
+  }
+  return null; // ok
+}
+
+// Rate limiters for endpoints that spawn yt-dlp processes.
+// GET /:id/videos  — lists channel videos (45-second yt-dlp call per request)
+const videosBrowseLimiter = rateLimit({
+  windowMs: 60 * 1000,      // 1 minute
+  max: 5,                   // 5 channel-browse requests per minute per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please slow down' },
+});
+
+// POST /download-url — queues a background yt-dlp download
+const downloadUrlLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 20,                  // 20 download requests per hour per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Download limit reached, try again later' },
+});
 
 // ── File registration helper ──────────────────────────────────────────────────
 // Called after yt-dlp finishes to insert the file record into the DB.
@@ -108,10 +145,8 @@ router.post('/', async (req, res, next) => {
     const { channelUrl, channelName } = req.body;
     if (!channelUrl) return res.status(400).json({ error: 'channelUrl is required' });
 
-    // Basic URL validation
-    try { new URL(channelUrl); } catch {
-      return res.status(400).json({ error: 'channelUrl must be a valid URL' });
-    }
+    const urlErr = assertYouTubeUrl(channelUrl);
+    if (urlErr) return res.status(400).json({ error: urlErr });
 
     const result = await pool.query(
       `INSERT INTO subscriptions (user_id, channel_url, channel_name)
@@ -146,7 +181,7 @@ router.delete('/:id', async (req, res, next) => {
 // ── GET /api/subscriptions/:id/videos ────────────────────────────────────────
 // Returns up to 20 recent videos from a channel without downloading them.
 // Uses yt-dlp --flat-playlist + --dump-json (one JSON line per video).
-router.get('/:id/videos', async (req, res, next) => {
+router.get('/:id/videos', videosBrowseLimiter, async (req, res, next) => {
   try {
     const sub = await pool.query(
       'SELECT * FROM subscriptions WHERE id = $1 AND user_id = $2',
@@ -211,17 +246,11 @@ router.get('/:id/videos', async (req, res, next) => {
 });
 
 // ── POST /api/subscriptions/download-url ─────────────────────────────────────
-router.post('/download-url', async (req, res) => {
+router.post('/download-url', downloadUrlLimiter, async (req, res) => {
   const { videoUrl } = req.body;
   if (!videoUrl) return res.status(400).json({ error: 'videoUrl is required' });
-  let parsedUrl;
-  try { parsedUrl = new URL(videoUrl); } catch {
-    return res.status(400).json({ error: 'videoUrl must be a valid URL' });
-  }
-  const ALLOWED_HOSTS = ['www.youtube.com', 'youtube.com', 'youtu.be', 'music.youtube.com'];
-  if (!ALLOWED_HOSTS.includes(parsedUrl.hostname)) {
-    return res.status(400).json({ error: 'Only YouTube URLs are supported' });
-  }
+  const urlErr = assertYouTubeUrl(videoUrl);
+  if (urlErr) return res.status(400).json({ error: urlErr });
 
   const userId = req.user.id;
   const userDir = path.join(__dirname, '..', 'uploads', `user_${userId}`);
