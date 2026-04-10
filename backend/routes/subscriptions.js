@@ -31,7 +31,10 @@ async function registerDownloadedFile(userId, storedName, originalName, absPath)
   const fileType = TYPE[ext] || 'video';
 
   let size = 0;
-  try { size = fs.statSync(absPath).size; } catch { return; }
+  try { size = fs.statSync(absPath).size; } catch (err) {
+    console.error(`registerDownloadedFile: file not found at ${absPath}: ${err.message}`);
+    return;
+  }
 
   try {
     await pool.query(
@@ -211,8 +214,13 @@ router.get('/:id/videos', async (req, res, next) => {
 router.post('/download-url', async (req, res) => {
   const { videoUrl } = req.body;
   if (!videoUrl) return res.status(400).json({ error: 'videoUrl is required' });
-  try { new URL(videoUrl); } catch {
+  let parsedUrl;
+  try { parsedUrl = new URL(videoUrl); } catch {
     return res.status(400).json({ error: 'videoUrl must be a valid URL' });
+  }
+  const ALLOWED_HOSTS = ['www.youtube.com', 'youtube.com', 'youtu.be', 'music.youtube.com'];
+  if (!ALLOWED_HOSTS.includes(parsedUrl.hostname)) {
+    return res.status(400).json({ error: 'Only YouTube URLs are supported' });
   }
 
   const userId = req.user.id;
