@@ -221,6 +221,18 @@ async function reorderItems(req, res, next) {
     );
     if (!pl.rows.length) return res.status(404).json({ error: 'Playlist not found' });
 
+    // Validate that the sent IDs exactly match the current playlist contents.
+    const currentItems = await pool.query(
+      'SELECT file_id FROM playlist_items WHERE playlist_id = $1',
+      [id]
+    );
+    const currentSet = new Set(currentItems.rows.map(r => r.file_id));
+    const sentSet = new Set(orderedFileIds.map(Number));
+    const setsMatch = currentSet.size === sentSet.size && [...currentSet].every(fid => sentSet.has(fid));
+    if (!setsMatch) {
+      return res.status(400).json({ error: 'orderedFileIds must contain exactly the current playlist items' });
+    }
+
     const client = await pool.connect();
     try {
       await client.query('BEGIN');

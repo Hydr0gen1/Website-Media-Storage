@@ -14,6 +14,9 @@ function formatFileRecord(f) {
   };
 }
 
+// Absolute path to the uploads directory — used to guard against path traversal.
+const UPLOADS_DIR = path.resolve(path.join(__dirname, '..', 'uploads'));
+
 const ALLOWED_EXTENSIONS = [
   // Video
   '.mov', '.mp4', '.webm', '.avi', '.mkv',
@@ -174,6 +177,11 @@ async function downloadFile(req, res, next) {
     }
 
     const file = result.rows[0];
+
+    // Defense-in-depth: ensure the stored path stays within the uploads directory.
+    if (!path.resolve(file.file_path).startsWith(UPLOADS_DIR)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
 
     if (!fs.existsSync(file.file_path)) {
       return res.status(404).json({ error: 'File not found on disk' });
