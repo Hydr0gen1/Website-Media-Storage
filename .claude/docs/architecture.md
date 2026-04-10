@@ -49,12 +49,14 @@ PostgreSQL lowercases all unquoted identifiers. Use `formatFileRecord()` / `form
 
 ## Frontend (`frontend/src/`)
 
-- **`App.jsx`** — Owns all application state: `files`, `currentUser`, `authToken`, `playlists`, `activeFile`, `activePlaylist`, `sidebarTab`, toasts. Passes callbacks down; no context or global store.
+- **`App.jsx`** — Owns all application state: `files`, `currentUser`, `authToken`, `authReady`, `playlists`, `activeFile`, `activePlaylist`, `sidebarTab`, toasts. On mount, restores session from `localStorage` (or handles OAuth `?auth_code=` callback). Renders `LoginPage` while `!currentUser`, a loading spinner while `!authReady`, otherwise the full app shell.
 - **`App.css`** — Single stylesheet for the whole app. CSS variables defined in `:root` — change colours there, not inline. Orange accent system (`--accent-primary: #ff9500`).
+- **`components/LoginPage.jsx`** — Full-screen auth gate shown to unauthenticated users. Contains the logo/tagline, OAuth buttons, and login/register form. No cancel or dismiss — the app is inaccessible without authentication.
+- **`components/AuthModal.jsx`** — In-app login/register modal (shown when a session expires mid-session). OAuth buttons are plain `<a>` links that navigate to `/api/auth/oauth/{provider}`.
+- **`components/VideoDownloader.jsx`** — Renders in the sidebar under the "Request" tab. Single form for downloading a YouTube video by URL via `POST /api/subscriptions/download-url`.
+- **`components/SubscriptionsManager.jsx`** — Renders in the sidebar under the "Subscriptions" tab. Two sections: add a channel subscription, list/delete existing subscriptions. Makes its own axios calls to `/api/subscriptions`.
 - **`components/PlaylistView.jsx`** — Detail view for a single playlist. Receives `playlist` (full object with `.items[]`), `allFiles`, `apiBase`, `authToken`, `onBack`, `onPlay(playlist, items)`, `onPlaylistUpdated(updatedPlaylist)`. Makes its own axios calls for add/remove/reorder, then calls `onPlaylistUpdated` with the refreshed data.
-- **`components/MediaPlayer.jsx`** — Receives `file`, `playlist` (active playlist state), `apiBase`, `onNext`, `onPrev`, `onTrackEnd`, `onSelectTrack`, `onClose`, `formatBytes`, `formatDate`. Uses `onNext`/`onPrev` for playlist prev/next buttons.
-- **`components/SubscriptionsManager.jsx`** — Renders in the sidebar when the Downloads tab is active. Receives `apiBase`, `authToken`, `onToast`. Three sections: add channel subscription, list/delete subscriptions, download a single video by URL. Makes its own axios calls to `/api/subscriptions`.
-- **`components/AuthModal.jsx`** — Login/register modal with OAuth buttons (Google, GitHub, Apple) above the local auth form. OAuth buttons are plain `<a>` links that navigate to `/api/auth/oauth/{provider}`.
+- **`components/MediaPlayer.jsx`** — Receives `file`, `playlist` (active playlist state), `apiBase`, `onNext`, `onPrev`, `onTrackEnd`, `onSelectTrack`, `onClose`, `formatBytes`, `formatDate`.
 - Auth token stored in `localStorage` key `authToken`. On mount, App checks for `?auth_code=` (OAuth return) and exchanges it for a token via POST, or calls `GET /api/auth/me` to restore an existing session.
 - Axios is used directly (`import axios from 'axios'`); no wrapper. Auth header is built inline: `{ Authorization: \`Bearer ${authToken}\` }`.
 
