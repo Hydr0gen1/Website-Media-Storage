@@ -72,8 +72,9 @@ body {
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
   padding: 0 var(--spacing-xl);
-  height: 60px;
+  min-height: 60px;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--spacing-md);
   position: sticky;
@@ -116,7 +117,11 @@ body {
   gap: 2px;
   flex: 1;
   margin-left: var(--spacing-lg);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
+.nav-tabs::-webkit-scrollbar { display: none; }
 
 .nav-tabs button {
   background: transparent;
@@ -128,6 +133,8 @@ body {
   transition: var(--transition);
   border-bottom: 2px solid transparent;
   white-space: nowrap;
+  flex-shrink: 0;
+  min-height: 44px; /* accessible touch target */
 }
 
 .nav-tabs button:hover {
@@ -150,15 +157,47 @@ body {
   grid-template-columns: 1fr;
   gap: var(--spacing-lg);
   padding: var(--spacing-lg);
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 0 auto;
   width: 100%;
 }
 
+/* ── Responsive breakpoints ───────────────────────────────────────────────── */
+/* Tablet+ — two-column layout */
+@media (min-width: 768px) {
+  .app-main {
+    grid-template-columns: 340px 1fr;
+    align-items: start;
+  }
+}
+
+/* Desktop — wider sidebar */
 @media (min-width: 1024px) {
   .app-main {
     grid-template-columns: 380px 1fr;
-    align-items: start;
+    padding: var(--spacing-xl);
+    gap: var(--spacing-xl);
+  }
+}
+
+/* Widescreen — expand sidebar and add breathing room */
+@media (min-width: 1440px) {
+  .app-main {
+    grid-template-columns: 420px 1fr;
+    padding: var(--spacing-2xl);
+    gap: var(--spacing-2xl);
+  }
+
+  .app-header {
+    padding: 0 var(--spacing-2xl);
+  }
+}
+
+/* Ultra-wide — cap content width and center */
+@media (min-width: 1920px) {
+  .app-main {
+    grid-template-columns: 460px 1fr;
+    max-width: 1800px;
   }
 }
 
@@ -1327,33 +1366,112 @@ select.form-input {
   text-align: center;
 }
 
-/* ── Responsive ───────────────────────────────────────────────────────────── */
-@media (max-width: 640px) {
+/* ── Mobile ───────────────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  /* Header: logo + user button on one row, nav tabs on second row */
+  .app-header {
+    padding: var(--spacing-sm) var(--spacing-md);
+    min-height: auto;
+    gap: var(--spacing-sm);
+  }
+
+  .nav-tabs {
+    order: 3;             /* push below logo + user actions */
+    flex: 0 0 100%;       /* full-width second row */
+    margin-left: 0;
+    border-top: 1px solid var(--border-color);
+    padding-top: 2px;
+    margin-top: 2px;
+  }
+
+  .nav-tabs button {
+    font-size: 0.8rem;
+    padding: var(--spacing-xs) var(--spacing-sm);
+  }
+
+  .user-actions {
+    margin-left: auto;
+  }
+
+  /* Main layout: single column, tighter spacing */
   .app-main {
     padding: var(--spacing-md);
     gap: var(--spacing-md);
   }
 
+  /* Player sticks to bottom of page on mobile */
   .player-card {
-    position: static;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 200;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.6);
+    max-height: 60vh;
+    overflow-y: auto;
   }
 
-  .app-header {
-    padding: 0 var(--spacing-lg);
+  /* Add padding at the bottom of the page so content isn't hidden behind the fixed player */
+  .app.has-player .app-main {
+    padding-bottom: 280px;
   }
 
+  /* File actions always visible on touch */
   .file-actions {
     opacity: 1;
   }
 
+  /* Toast full-width on mobile */
   .toast-container {
     right: var(--spacing-md);
     left: var(--spacing-md);
     max-width: 100%;
   }
 
+  /* Dialogs: full-width on small screens */
+  .dialog {
+    width: calc(100vw - var(--spacing-2xl));
+    max-width: 100%;
+  }
+
+  /* Auth dialog: full-width with minimal side margins */
+  .auth-dialog {
+    width: calc(100vw - var(--spacing-2xl));
+  }
+
+  /* Login page: tighter padding */
+  .login-card {
+    padding: var(--spacing-xl);
+  }
+
+  /* Playlist panel */
+  .playlist-item {
+    padding: var(--spacing-sm);
+  }
+
+  /* Subscription list */
+  .subs-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-xs);
+  }
+
+  /* Image container height reduction */
   .player-image-container {
-    height: 300px;
+    height: 220px;
+  }
+}
+
+/* ── Small mobile (iPhone SE etc.) ───────────────────────────────────────── */
+@media (max-width: 390px) {
+  .logo-text {
+    display: none;  /* hide "MediaStore" text, keep emoji */
+  }
+
+  .nav-tabs button {
+    font-size: 0.75rem;
+    padding: var(--spacing-xs) 6px;
   }
 }
 

@@ -57,6 +57,7 @@ function downloadVideo(videoUrl, userDir, extraArgs = []) {
     const args = [
       videoUrl,
       '--print', 'title',
+      '--no-simulate',       // prevent yt-dlp from entering simulation mode when --print is used
       '-o', outputTemplate,
       '--no-playlist',
       '-f', 'best[ext=mp4]/best',

@@ -297,7 +297,7 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className={`app${activeFile || activePlaylist ? ' has-player' : ''}`}>
       <header className="app-header">
         <div className="logo">
           <span className="logo-icon">🎬</span>

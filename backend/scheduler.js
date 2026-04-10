@@ -13,7 +13,7 @@ async function processSubscription(sub) {
   const outputTemplate = path.join(userDir, '%(title)s.%(ext)s');
   const args = [
     sub.channel_url,
-    '--dateafter', 'now-7d',
+    '--dateafter', 'now-2d',   // only check last 48 hours — keeps frequent checks fast
     '-o', outputTemplate,
     '-f', 'best[ext=mp4]/best',
     '--merge-output-format', 'mp4',
@@ -49,9 +49,8 @@ async function processSubscription(sub) {
   }
 }
 
-// Daily job at midnight
-schedule.scheduleJob('0 0 * * *', async () => {
-  console.log('[scheduler] Starting daily subscription check...');
+// Check every 15 minutes for near-real-time new video detection
+schedule.scheduleJob('*/15 * * * *', async () => {
   let subs;
   try {
     const result = await pool.query('SELECT * FROM subscriptions ORDER BY user_id');
@@ -61,11 +60,13 @@ schedule.scheduleJob('0 0 * * *', async () => {
     return;
   }
 
-  console.log(`[scheduler] Processing ${subs.length} subscription(s)`);
+  if (!subs.length) return; // nothing to do — skip noisy log
+  console.log(`[scheduler] Checking ${subs.length} subscription(s) for new videos...`);
+
   for (const sub of subs) {
     await processSubscription(sub);
   }
-  console.log('[scheduler] Daily check complete');
+  console.log('[scheduler] Subscription check complete');
 });
 
-console.log('[scheduler] Daily subscription job scheduled (runs at midnight)');
+console.log('[scheduler] Subscription job scheduled (runs every 15 minutes)');
