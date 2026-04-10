@@ -13,19 +13,12 @@ RUN npm run build
 # ── Stage 2: Runtime ──────────────────────────────────────────────────────────
 FROM node:20-alpine AS runtime
 
-# Install dumb-init and ffmpeg; download the musl-compatible yt-dlp standalone binary
-# (the plain 'yt-dlp' release is a Python script and won't run on Alpine without Python)
-RUN apk add --no-cache dumb-init ffmpeg wget && \
-    ARCH=$(uname -m) && \
-    case "$ARCH" in \
-      x86_64)  YTDLP_BIN="yt-dlp_linux_musl" ;; \
-      aarch64) YTDLP_BIN="yt-dlp_linux_aarch64_musl" ;; \
-      *)        YTDLP_BIN="yt-dlp_linux_musl" ;; \
-    esac && \
-    ( wget -qO /usr/local/bin/yt-dlp \
-        "https://github.com/yt-dlp/yt-dlp/releases/latest/download/${YTDLP_BIN}" \
-      && chmod +x /usr/local/bin/yt-dlp \
-    ) || echo "Warning: yt-dlp download failed — download/subscribe features will be unavailable"
+# Install dumb-init, ffmpeg, and yt-dlp.
+# pip install is used because the Alpine base image (musl libc) cannot run
+# the glibc-linked yt-dlp standalone binaries, and the musl builds have
+# inconsistent filenames across releases.  python3 + pip is the reliable path.
+RUN apk add --no-cache dumb-init ffmpeg python3 py3-pip && \
+    pip3 install --no-cache-dir --break-system-packages yt-dlp
 
 WORKDIR /app
 
