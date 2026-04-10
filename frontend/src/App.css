@@ -1468,3 +1468,74 @@ select.form-input {
   font-size: 0.7rem;
   color: var(--text-muted, #555);
 }
+
+/* ── Auth loading screen ──────────────────────────────────────────────────── */
+.auth-loading {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-primary);
+  font-size: 3rem;
+}
+
+.auth-loading-icon {
+  animation: auth-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes auth-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(0.9); }
+}
+
+/* ── Login page (full-screen auth gate) ───────────────────────────────────── */
+.login-page {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-primary);
+  padding: var(--spacing-lg);
+  overflow-y: auto;
+}
+
+.login-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-2xl);
+  width: 100%;
+  max-width: 400px;
+  box-shadow: var(--shadow-lg);
+}
+
+.login-brand {
+  text-align: center;
+  margin-bottom: var(--spacing-xl);
+}
+
+.login-brand-icon {
+  display: block;
+  font-size: 2.5rem;
+  margin-bottom: var(--spacing-sm);
+}
+
+.login-brand-name {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 var(--spacing-xs) 0;
+}
+
+.login-brand-tagline {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.login-submit {
+  width: 100%;
+  margin-top: var(--spacing-sm);
+}
