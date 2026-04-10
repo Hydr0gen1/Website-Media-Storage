@@ -102,24 +102,30 @@ export default function App() {
   // ── Restore session on mount (also handles OAuth callback params) ────────────
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    // OAuth providers redirect back to /?token=xxx&username=yyy (or ?oauth_error=...)
     const params = new URLSearchParams(window.location.search);
-    const oauthToken = params.get('token');
-    const oauthUsername = params.get('username');
+    const authCode = params.get('auth_code');
     const oauthError = params.get('oauth_error');
 
-    if (oauthToken && oauthUsername) {
+    // OAuth code exchange: frontend receives a one-time code and exchanges it
+    // for the real session token via POST (token never appears in the URL).
+    if (authCode) {
       window.history.replaceState({}, '', window.location.pathname);
-      localStorage.setItem('authToken', oauthToken);
-      setAuthToken(oauthToken);
-      setCurrentUser({ username: oauthUsername });
-      showToast(`Welcome, ${oauthUsername}!`);
+      axios.post(`${API_BASE}/auth/oauth/exchange`, { code: authCode })
+        .then(({ data }) => {
+          localStorage.setItem('authToken', data.token);
+          setAuthToken(data.token);
+          setCurrentUser(data.user);
+          showToast(`Welcome, ${data.user.username}!`);
+        })
+        .catch(() => showToast('Sign-in failed. Please try again.', 'error'));
       return;
     }
 
     if (oauthError) {
       window.history.replaceState({}, '', window.location.pathname);
-      showToast(`Sign-in failed: ${oauthError}`, 'error');
+      // Sanitize the error message to prevent XSS via crafted URL params
+      const safeError = oauthError.replace(/[<>"'&]/g, '');
+      showToast(`Sign-in failed: ${safeError || 'Unknown error'}`, 'error');
       return;
     }
 

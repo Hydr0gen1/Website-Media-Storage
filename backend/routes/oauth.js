@@ -22,6 +22,15 @@ setInterval(() => {
   }
 }, 60_000);
 
+// ── One-time auth code store (prevents token exposure in URLs) ───────────────
+const pendingCodes = new Map(); // code -> { token, username, createdAt }
+setInterval(() => {
+  const cutoff = Date.now() - 60 * 1000; // 60-second TTL
+  for (const [code, data] of pendingCodes.entries()) {
+    if (data.createdAt < cutoff) pendingCodes.delete(code);
+  }
+}, 10_000);
+
 function generateState() {
   const state = crypto.randomBytes(16).toString('hex');
   pendingStates.set(state, Date.now());
@@ -36,7 +45,11 @@ function verifyState(state) {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function redirectSuccess(res, token, username) {
-  const p = new URLSearchParams({ token, username });
+  // Issue a short-lived one-time code instead of putting the real token in the URL.
+  // The frontend exchanges this code for the actual session token via POST.
+  const code = crypto.randomBytes(32).toString('hex');
+  pendingCodes.set(code, { token, username, createdAt: Date.now() });
+  const p = new URLSearchParams({ auth_code: code });
   res.redirect(`${FRONTEND_BASE}/?${p}`);
 }
 
@@ -305,5 +318,18 @@ router.post(
     }
   }
 );
+
+// ── Code exchange endpoint ────────────────────────────────────────────────────
+// Frontend POSTs the one-time auth_code it received via redirect, and gets back
+// the real session token. The code is deleted on first use (one-time).
+router.post('/exchange', express.json(), (req, res) => {
+  const { code } = req.body;
+  if (!code || !pendingCodes.has(code)) {
+    return res.status(400).json({ error: 'Invalid or expired authorization code' });
+  }
+  const { token, username } = pendingCodes.get(code);
+  pendingCodes.delete(code);
+  res.json({ token, user: { username } });
+});
 
 module.exports = router;
