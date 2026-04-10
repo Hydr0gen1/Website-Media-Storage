@@ -26,6 +26,16 @@ function formatDate(dateStr) {
   });
 }
 
+// Formats an axios error into a short debug string for toast detail lines.
+function errDetail(err) {
+  const status = err?.response?.status;
+  const msg = err?.response?.data?.error;
+  const parts = [];
+  if (status) parts.push(`HTTP ${status}`);
+  if (msg) parts.push(msg);
+  return parts.join(' · ') || null;
+}
+
 export default function App() {
   // ── Files ────────────────────────────────────────────────────────────
   const [files, setFiles] = useState([]);
@@ -60,9 +70,9 @@ export default function App() {
     delete toastTimers.current[id];
   }, []);
 
-  const showToast = useCallback((message, type = 'success', duration = 4000) => {
+  const showToast = useCallback((message, type = 'success', duration = 4000, detail = null) => {
     const id = Date.now();
-    setToasts((prev) => [...prev, { id, message, type }]);
+    setToasts((prev) => [...prev, { id, message, type, detail }]);
     toastTimers.current[id] = setTimeout(() => dismissToast(id), duration);
   }, [dismissToast]);
 
@@ -168,7 +178,7 @@ export default function App() {
         setAuthToken(null);
         setCurrentUser(null);
       } else {
-        showToast('Failed to load files', 'error');
+        showToast('Failed to load files', 'error', 4000, errDetail(err));
       }
     } finally {
       setLoading(false);
@@ -197,7 +207,7 @@ export default function App() {
     if (!selectedPlaylistId || !authToken) return;
     axios.get(`${API_BASE}/playlists/${selectedPlaylistId}`, { headers: authHeaders() })
       .then(({ data }) => setPlaylistDetail(data))
-      .catch(() => showToast('Failed to load playlist', 'error'));
+      .catch((err) => showToast('Failed to load playlist', 'error', 4000, errDetail(err)));
   }, [selectedPlaylistId, authToken, authHeaders, showToast]);
 
   // ── File handlers ─────────────────────────────────────────────────────────
@@ -217,8 +227,8 @@ export default function App() {
       setFiles((prev) => prev.filter((f) => f.id !== file.id));
       if (activeFile?.id === file.id) { setActiveFile(null); setActivePlaylist(null); }
       showToast(`"${file.originalFilename}" deleted`);
-    } catch {
-      showToast('Failed to delete file', 'error');
+    } catch (err) {
+      showToast('Failed to delete file', 'error', 4000, errDetail(err));
     }
   };
 
@@ -287,8 +297,11 @@ export default function App() {
         <div className="toast-container">
           {toasts.map((t) => (
             <div key={t.id} className={`toast toast-${t.type}`}>
-              {t.message}
-              <button onClick={() => dismissToast(t.id)}>✕</button>
+              <div className="toast-content">
+                <span>{t.message}</span>
+                {t.detail && <span className="toast-detail">{t.detail}</span>}
+              </div>
+              <button className="toast-dismiss" onClick={() => dismissToast(t.id)}>✕</button>
             </div>
           ))}
         </div>
@@ -371,7 +384,7 @@ export default function App() {
                     showToast('Added to playlist');
                     fetchPlaylists();
                   } catch (err) {
-                    showToast(err.response?.data?.error || 'Failed to add to playlist', 'error');
+                    showToast(err.response?.data?.error || 'Failed to add to playlist', 'error', 4000, errDetail(err));
                   }
                 }}
                 formatBytes={formatBytes}
@@ -393,13 +406,13 @@ export default function App() {
             <VideoDownloader
               apiBase={API_BASE}
               authToken={authToken}
-              onToast={showToast}
+              onToast={(msg, type, detail) => showToast(msg, type, 4000, detail)}
             />
           ) : (
             <SubscriptionsManager
               apiBase={API_BASE}
               authToken={authToken}
-              onToast={showToast}
+              onToast={(msg, type, detail) => showToast(msg, type, 4000, detail)}
             />
           )}
         </aside>
@@ -489,8 +502,11 @@ export default function App() {
       <div className="toast-container">
         {toasts.map((t) => (
           <div key={t.id} className={`toast toast-${t.type}`}>
-            {t.message}
-            <button onClick={() => dismissToast(t.id)}>✕</button>
+            <div className="toast-content">
+              <span>{t.message}</span>
+              {t.detail && <span className="toast-detail">{t.detail}</span>}
+            </div>
+            <button className="toast-dismiss" onClick={() => dismissToast(t.id)}>✕</button>
           </div>
         ))}
       </div>

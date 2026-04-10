@@ -1,6 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
+const errDetail = (err) => {
+  const status = err?.response?.status;
+  const msg = err?.response?.data?.error;
+  const parts = [];
+  if (status) parts.push(`HTTP ${status}`);
+  if (msg) parts.push(msg);
+  return parts.join(' · ') || null;
+};
+
 function formatDuration(seconds) {
   if (!seconds) return '';
   const h = Math.floor(seconds / 3600);
@@ -31,7 +40,7 @@ function VideoBrowser({ sub, apiBase, authToken, onToast, onClose }) {
     setSelected(new Set());
     axios.get(`${apiBase}/subscriptions/${sub.id}/videos`, { headers: authHeaders() })
       .then(({ data }) => { if (!cancelled) setVideos(data); })
-      .catch(() => { if (!cancelled) onToast('Failed to fetch videos from this channel', 'error'); })
+      .catch((err) => { if (!cancelled) onToast('Failed to fetch videos from this channel', 'error', errDetail(err)); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [sub.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -62,7 +71,7 @@ function VideoBrowser({ sub, apiBase, authToken, onToast, onClose }) {
         );
         queued++;
       } catch (err) {
-        onToast(`Failed to queue "${video.title}": ${err.response?.data?.error || 'error'}`, 'error');
+        onToast(`Failed to queue "${video.title}"`, 'error', errDetail(err));
       }
     }
     setDownloading(false);
@@ -153,7 +162,7 @@ export default function SubscriptionsManager({ apiBase, authToken, onToast }) {
       });
       setSubscriptions(data);
     } catch (err) {
-      onToast(err.response?.data?.error || 'Failed to load subscriptions', 'error');
+      onToast(err.response?.data?.error || 'Failed to load subscriptions', 'error', errDetail(err));
     }
   }, [apiBase, authToken, onToast]);
 
@@ -176,7 +185,7 @@ export default function SubscriptionsManager({ apiBase, authToken, onToast }) {
       onToast('Channel subscribed! New videos will appear automatically.');
       await fetchSubscriptions();
     } catch (err) {
-      onToast(err.response?.data?.error || 'Failed to add channel', 'error');
+      onToast(err.response?.data?.error || 'Failed to add channel', 'error', errDetail(err));
     } finally {
       setAddingChannel(false);
     }
@@ -190,7 +199,7 @@ export default function SubscriptionsManager({ apiBase, authToken, onToast }) {
       onToast('Subscription removed');
       await fetchSubscriptions();
     } catch (err) {
-      onToast(err.response?.data?.error || 'Failed to remove subscription', 'error');
+      onToast(err.response?.data?.error || 'Failed to remove subscription', 'error', errDetail(err));
     }
   }
 
