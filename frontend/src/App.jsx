@@ -8,6 +8,7 @@ import PlaylistPanel from './components/PlaylistPanel';
 import PlaylistView from './components/PlaylistView';
 import SubscriptionsManager from './components/SubscriptionsManager';
 import VideoDownloader from './components/VideoDownloader';
+import LoginPage from './components/LoginPage';
 
 const API_BASE = '/api';
 
@@ -38,6 +39,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [authToken, setAuthToken] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
+  const [authReady, setAuthReady] = useState(false); // true once initial session check is done
 
   // ── Playlists ────────────────────────────────────────────────────────────
   const [playlists, setPlaylists] = useState([]);
@@ -118,7 +120,8 @@ export default function App() {
           setCurrentUser(data.user);
           showToast(`Welcome, ${data.user.username}!`);
         })
-        .catch(() => showToast('Sign-in failed. Please try again.', 'error'));
+        .catch(() => showToast('Sign-in failed. Please try again.', 'error'))
+        .finally(() => setAuthReady(true));
       return;
     }
 
@@ -127,17 +130,22 @@ export default function App() {
       // Sanitize the error message to prevent XSS via crafted URL params
       const safeError = oauthError.replace(/[<>"'&]/g, '');
       showToast(`Sign-in failed: ${safeError || 'Unknown error'}`, 'error');
+      setAuthReady(true);
       return;
     }
 
     const token = localStorage.getItem('authToken');
-    if (!token) return;
+    if (!token) {
+      setAuthReady(true);
+      return;
+    }
     axios.get(`${API_BASE}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
       .then(({ data }) => {
         setCurrentUser(data.user);
         setAuthToken(token);
       })
-      .catch(() => localStorage.removeItem('authToken'));
+      .catch(() => localStorage.removeItem('authToken'))
+      .finally(() => setAuthReady(true));
   }, []); // intentionally [] — runs once on mount only
 
   // ── Fetch files ───────────────────────────────────────────────────────────
@@ -261,6 +269,33 @@ export default function App() {
   }, [activeFile, files]);
 
   // ── Render ────────────────────────────────────────────────────────────────
+
+  // Waiting for initial session check — show nothing to prevent a flash of the login page
+  if (!authReady) {
+    return (
+      <div className="auth-loading">
+        <span className="auth-loading-icon">🎬</span>
+      </div>
+    );
+  }
+
+  // Not logged in — show the full-screen login page
+  if (!currentUser) {
+    return (
+      <>
+        <LoginPage onLogin={handleLogin} />
+        <div className="toast-container">
+          {toasts.map((t) => (
+            <div key={t.id} className={`toast toast-${t.type}`}>
+              {t.message}
+              <button onClick={() => dismissToast(t.id)}>✕</button>
+            </div>
+          ))}
+        </div>
+      </>
+    );
+  }
+
   return (
     <div className="app">
       <header className="app-header">
