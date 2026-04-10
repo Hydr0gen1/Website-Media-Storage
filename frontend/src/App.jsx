@@ -9,6 +9,7 @@ import PlaylistView from './components/PlaylistView';
 import SubscriptionsManager from './components/SubscriptionsManager';
 import VideoDownloader from './components/VideoDownloader';
 import LoginPage from './components/LoginPage';
+import DebugPanel from './components/DebugPanel';
 
 const API_BASE = '/api';
 
@@ -59,6 +60,9 @@ export default function App() {
 
   // ── Player playlist state ─────────────────────────────────────────────────
   const [activePlaylist, setActivePlaylist] = useState(null); // { playlist, items, currentIndex }
+
+  // ── Debug panel ──────────────────────────────────────────────────────────
+  const [showDebug, setShowDebug] = useState(false);
 
   // ── Toasts ───────────────────────────────────────────────────────────────
   const [toasts, setToasts] = useState([]);
@@ -343,6 +347,15 @@ export default function App() {
           </button>
         </nav>
         <div className="user-actions">
+          {currentUser && (
+            <button
+              className="btn btn-ghost btn-sm debug-trigger"
+              onClick={() => setShowDebug(true)}
+              title="System diagnostics"
+            >
+              ⚙
+            </button>
+          )}
           {currentUser ? (
             <button className="btn btn-ghost" onClick={handleLogout}>
               {currentUser.username} (Logout)
@@ -479,6 +492,14 @@ export default function App() {
           onLogin={handleLogin}
           onClose={() => setShowAuth(false)}
           apiBase={API_BASE}
+        />
+      )}
+
+      {showDebug && (
+        <DebugPanel
+          apiBase={API_BASE}
+          authToken={authToken}
+          onClose={() => setShowDebug(false)}
         />
       )}
 

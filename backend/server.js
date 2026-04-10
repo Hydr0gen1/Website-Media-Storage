@@ -15,6 +15,7 @@ const authRouter = require('./routes/auth');
 const playlistsRouter = require('./routes/playlists');
 const { router: subscriptionsRouter } = require('./routes/subscriptions');
 const oauthRouter = require('./routes/oauth');
+const debugRouter = require('./routes/debug');
 
 const app = express();
 // Trust Caddy (one proxy hop) so express-rate-limit sees real client IPs
@@ -53,6 +54,7 @@ app.use('/api/auth/oauth', oauthRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/playlists', playlistsRouter);
 app.use('/api/subscriptions', subscriptionsRouter);
+app.use('/api/debug', debugRouter);
 
 // Health check
 app.get('/health', (req, res) => {
