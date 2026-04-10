@@ -142,7 +142,7 @@ router.delete('/:id', async (req, res, next) => {
 
 // ── GET /api/subscriptions/:id/videos ────────────────────────────────────────
 // Returns up to 20 recent videos from a channel without downloading them.
-// Uses yt-dlp's --flat-playlist to enumerate quickly.
+// Uses yt-dlp --flat-playlist + --dump-json (one JSON line per video).
 router.get('/:id/videos', async (req, res, next) => {
   try {
     const sub = await pool.query(
@@ -151,29 +151,49 @@ router.get('/:id/videos', async (req, res, next) => {
     );
     if (!sub.rows.length) return res.status(404).json({ error: 'Subscription not found' });
 
-    const { channel_url } = sub.rows[0];
+    let channelUrl = sub.rows[0].channel_url;
+
+    // yt-dlp needs the /videos tab URL to enumerate uploads reliably.
+    // Append /videos unless the URL already points to a playlist or specific tab.
+    if (
+      !channelUrl.includes('/videos') &&
+      !channelUrl.includes('/playlist') &&
+      !channelUrl.includes('list=')
+    ) {
+      channelUrl = channelUrl.replace(/\/?$/, '/videos');
+    }
 
     const videos = await new Promise((resolve, reject) => {
       const args = [
-        channel_url,
+        channelUrl,
         '--flat-playlist',
         '--playlist-end', '20',
-        '--print', '%(id)s\t%(title)s\t%(duration)s\t%(upload_date)s',
+        '--dump-json',       // one JSON object per line — more reliable than --print templates
         '--no-warnings',
         '--quiet',
       ];
-      execFile('yt-dlp', args, { timeout: 30000 }, (err, stdout, stderr) => {
-        if (err && !stdout) return reject(new Error(stderr || err.message));
-        const items = stdout.trim().split('\n').filter(Boolean).map(line => {
-          const [id, title, duration, uploadDate] = line.split('\t');
-          return {
-            id,
-            title: title || id,
-            duration: parseInt(duration, 10) || null,
-            uploadDate: uploadDate || null,
-            url: `https://www.youtube.com/watch?v=${id}`,
-          };
+
+      execFile('yt-dlp', args, { timeout: 45000 }, (err, stdout, stderr) => {
+        if (err && !stdout.trim()) {
+          console.error(`[videos] yt-dlp failed for ${channelUrl}:`, stderr || err.message);
+          return reject(new Error('Could not fetch videos from this channel'));
+        }
+
+        const items = stdout.trim().split('\n').filter(Boolean).flatMap(line => {
+          try {
+            const v = JSON.parse(line);
+            return [{
+              id: v.id,
+              title: v.title || v.id,
+              duration: v.duration || null,
+              uploadDate: v.upload_date || null,
+              url: v.webpage_url || `https://www.youtube.com/watch?v=${v.id}`,
+            }];
+          } catch {
+            return []; // skip malformed lines
+          }
         });
+
         resolve(items);
       });
     });
