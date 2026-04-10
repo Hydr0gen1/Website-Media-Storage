@@ -1,6 +1,15 @@
 import { useState } from 'react';
 import axios from 'axios';
 
+const errDetail = (err) => {
+  const status = err?.response?.status;
+  const msg = err?.response?.data?.error;
+  const parts = [];
+  if (status) parts.push(`HTTP ${status}`);
+  if (msg) parts.push(msg);
+  return parts.join(' · ') || null;
+};
+
 export default function VideoDownloader({ apiBase, authToken, onToast }) {
   const [videoUrl, setVideoUrl] = useState('');
   const [downloading, setDownloading] = useState(false);
@@ -20,7 +29,7 @@ export default function VideoDownloader({ apiBase, authToken, onToast }) {
       setVideoUrl('');
       onToast('Download started! Check your library in a few minutes.');
     } catch (err) {
-      onToast(err.response?.data?.error || 'Failed to start download', 'error');
+      onToast(err.response?.data?.error || 'Failed to start download', 'error', errDetail(err));
     } finally {
       setDownloading(false);
     }
