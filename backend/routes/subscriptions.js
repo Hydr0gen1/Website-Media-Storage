@@ -57,6 +57,7 @@ function downloadVideo(videoUrl, userDir, extraArgs = []) {
     const args = [
       videoUrl,
       '--print', 'title',
+      '--no-simulate',       // prevent yt-dlp from entering simulation mode when --print is used
       '-o', outputTemplate,
       '--no-playlist',
       '-f', 'best[ext=mp4]/best',
@@ -134,6 +135,50 @@ router.delete('/:id', async (req, res, next) => {
       return res.status(404).json({ error: 'Subscription not found' });
     }
     res.json({ message: 'Subscription removed' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── GET /api/subscriptions/:id/videos ────────────────────────────────────────
+// Returns up to 20 recent videos from a channel without downloading them.
+// Uses yt-dlp's --flat-playlist to enumerate quickly.
+router.get('/:id/videos', async (req, res, next) => {
+  try {
+    const sub = await pool.query(
+      'SELECT * FROM subscriptions WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.user.id]
+    );
+    if (!sub.rows.length) return res.status(404).json({ error: 'Subscription not found' });
+
+    const { channel_url } = sub.rows[0];
+
+    const videos = await new Promise((resolve, reject) => {
+      const args = [
+        channel_url,
+        '--flat-playlist',
+        '--playlist-end', '20',
+        '--print', '%(id)s\t%(title)s\t%(duration)s\t%(upload_date)s',
+        '--no-warnings',
+        '--quiet',
+      ];
+      execFile('yt-dlp', args, { timeout: 30000 }, (err, stdout, stderr) => {
+        if (err && !stdout) return reject(new Error(stderr || err.message));
+        const items = stdout.trim().split('\n').filter(Boolean).map(line => {
+          const [id, title, duration, uploadDate] = line.split('\t');
+          return {
+            id,
+            title: title || id,
+            duration: parseInt(duration, 10) || null,
+            uploadDate: uploadDate || null,
+            url: `https://www.youtube.com/watch?v=${id}`,
+          };
+        });
+        resolve(items);
+      });
+    });
+
+    res.json(videos);
   } catch (err) {
     next(err);
   }

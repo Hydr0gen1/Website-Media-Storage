@@ -40,6 +40,7 @@ Base path: `/api`
 | `GET` | `/api/subscriptions` | Yes | List user's channel subscriptions |
 | `POST` | `/api/subscriptions` | Yes | Add subscription `{ channelUrl, channelName? }` |
 | `DELETE` | `/api/subscriptions/:id` | Yes | Remove subscription (own only) |
+| `GET` | `/api/subscriptions/:id/videos` | Yes | List up to 20 recent videos from a subscribed channel (no download) |
 | `POST` | `/api/subscriptions/download-url` | Yes | Download video by URL `{ videoUrl }` — returns immediately, runs in background |
 
 ## Playlists
