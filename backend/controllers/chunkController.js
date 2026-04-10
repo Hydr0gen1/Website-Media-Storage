@@ -186,7 +186,13 @@ async function finalizeChunkedUpload(req, res, next) {
 
     // Stream-merge chunks in order without loading all data into memory
     const writeStream = fs.createWriteStream(finalPath);
+    // Capture write-stream errors that fire between iterations so Node doesn't
+    // crash with an unhandled 'error' event (e.g. ENOSPC / disk full).
+    let writeStreamError = null;
+    writeStream.on('error', (err) => { writeStreamError = err; });
+
     for (let i = 0; i < session.totalChunks; i++) {
+      if (writeStreamError) throw writeStreamError;
       const chunkPath = path.join(CHUNK_DIR, `${uploadId}-${i}`);
       await new Promise((resolve, reject) => {
         const readStream = fs.createReadStream(chunkPath);
@@ -199,10 +205,11 @@ async function finalizeChunkedUpload(req, res, next) {
       });
       await fs.promises.unlink(chunkPath);
     }
+    if (writeStreamError) throw writeStreamError;
     await new Promise((resolve, reject) => {
       writeStream.end();
-      writeStream.on('finish', resolve);
-      writeStream.on('error', reject);
+      writeStream.once('finish', resolve);
+      writeStream.once('error', reject);
     });
 
     const fileStats = fs.statSync(finalPath);
