@@ -10,7 +10,7 @@ export default function SubscriptionsManager({ apiBase, authToken, onToast }) {
   const [downloading, setDownloading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
-  const authHeaders = () => ({ Authorization: `Bearer ${authToken}` });
+  const authHeaders = () => authToken ? { Authorization: `Bearer ${authToken}` } : {};
 
   const fetchSubscriptions = useCallback(async () => {
     try {
@@ -162,19 +162,19 @@ export default function SubscriptionsManager({ apiBase, authToken, onToast }) {
 
       {/* ── Confirm delete dialog ────────────────────────────────── */}
       {confirmDelete && (
-        <div className="modal-overlay" onClick={() => setConfirmDelete(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="overlay" onClick={() => setConfirmDelete(null)}>
+          <div className="dialog" onClick={(e) => e.stopPropagation()}>
             <h3>Remove Subscription?</h3>
             <p>
               Stop following &quot;{confirmDelete.channel_name || confirmDelete.channel_url}
               &quot;? Already downloaded files are kept.
             </p>
-            <div className="modal-actions">
-              <button className="btn btn-danger" onClick={() => handleDelete(confirmDelete)}>
-                Remove
-              </button>
+            <div className="dialog-actions">
               <button className="btn btn-ghost" onClick={() => setConfirmDelete(null)}>
                 Cancel
+              </button>
+              <button className="btn btn-danger" onClick={() => handleDelete(confirmDelete)}>
+                Remove
               </button>
             </div>
           </div>
