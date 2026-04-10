@@ -1557,6 +1557,125 @@ select.form-input {
   padding: var(--spacing-sm);
   background: var(--bg-primary);
   border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  transition: var(--transition);
+}
+
+.subs-item-clickable {
+  cursor: pointer;
+}
+
+.subs-item-clickable:hover {
+  border-color: var(--accent-subtle-border);
+  background: var(--accent-subtle);
+}
+
+.subs-item-controls {
+  display: flex;
+  gap: var(--spacing-xs);
+  flex-shrink: 0;
+}
+
+/* ── Video Browser ─────────────────────────────────────────────────────────── */
+.video-browser {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.video-browser-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.video-browser-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  min-width: 0;
+}
+
+.video-browser-back {
+  flex-shrink: 0;
+}
+
+.video-browser-channel {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.video-browser-actions {
+  display: flex;
+  gap: var(--spacing-xs);
+  flex-shrink: 0;
+}
+
+.video-browser-loading {
+  text-align: center;
+  padding: var(--spacing-xl) 0;
+}
+
+.video-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.video-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
+  border: 1px solid transparent;
+}
+
+.video-item:hover {
+  background: var(--bg-tertiary);
+}
+
+.video-item.selected {
+  background: var(--accent-subtle);
+  border-color: var(--accent-subtle-border);
+}
+
+.video-checkbox {
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: var(--accent-primary);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+.video-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.video-title {
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+  line-height: 1.35;
+}
+
+.video-meta {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
 }
 
 .subs-item-info {
