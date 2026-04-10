@@ -175,8 +175,11 @@ router.get('/:id/videos', async (req, res, next) => {
 
       execFile('yt-dlp', args, { timeout: 45000 }, (err, stdout, stderr) => {
         if (err && !stdout.trim()) {
-          console.error(`[videos] yt-dlp failed for ${channelUrl}:`, stderr || err.message);
-          return reject(new Error('Could not fetch videos from this channel'));
+          // Extract the first meaningful error line from yt-dlp's stderr for diagnostics.
+          const ytErr = (stderr || err.message || '').trim()
+            .split('\n').map(l => l.trim()).filter(l => l && !/^WARNING/.test(l))[0] || 'unknown error';
+          console.error(`[videos] yt-dlp failed for ${channelUrl}:`, ytErr);
+          return reject(new Error(`Could not fetch videos: ${ytErr}`));
         }
 
         const items = stdout.trim().split('\n').filter(Boolean).flatMap(line => {
