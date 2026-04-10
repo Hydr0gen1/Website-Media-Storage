@@ -14,6 +14,7 @@ const filesRouter = require('./routes/files');
 const authRouter = require('./routes/auth');
 const playlistsRouter = require('./routes/playlists');
 const { router: subscriptionsRouter } = require('./routes/subscriptions');
+const oauthRouter = require('./routes/oauth');
 
 const app = express();
 const server = http.createServer(app);
@@ -34,6 +35,7 @@ app.use('/api', filesRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/playlists', playlistsRouter);
 app.use('/api/subscriptions', subscriptionsRouter);
+app.use('/api/auth/oauth', oauthRouter);
 
 // Health check
 app.get('/health', (req, res) => {

@@ -99,8 +99,30 @@ export default function App() {
     showToast('Logged out');
   }, [authHeaders, showToast]);
 
-  // ── Restore session on mount ──────────────────────────────────────────────
+  // ── Restore session on mount (also handles OAuth callback params) ────────────
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
+    // OAuth providers redirect back to /?token=xxx&username=yyy (or ?oauth_error=...)
+    const params = new URLSearchParams(window.location.search);
+    const oauthToken = params.get('token');
+    const oauthUsername = params.get('username');
+    const oauthError = params.get('oauth_error');
+
+    if (oauthToken && oauthUsername) {
+      window.history.replaceState({}, '', window.location.pathname);
+      localStorage.setItem('authToken', oauthToken);
+      setAuthToken(oauthToken);
+      setCurrentUser({ username: oauthUsername });
+      showToast(`Welcome, ${oauthUsername}!`);
+      return;
+    }
+
+    if (oauthError) {
+      window.history.replaceState({}, '', window.location.pathname);
+      showToast(`Sign-in failed: ${oauthError}`, 'error');
+      return;
+    }
+
     const token = localStorage.getItem('authToken');
     if (!token) return;
     axios.get(`${API_BASE}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
@@ -109,7 +131,7 @@ export default function App() {
         setAuthToken(token);
       })
       .catch(() => localStorage.removeItem('authToken'));
-  }, []);
+  }, []); // intentionally [] — runs once on mount only
 
   // ── Fetch files ───────────────────────────────────────────────────────────
   const fetchFiles = useCallback(async () => {

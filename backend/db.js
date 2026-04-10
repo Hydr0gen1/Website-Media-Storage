@@ -87,6 +87,16 @@ async function initDB() {
       )
     `);
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS oauth_accounts (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        provider VARCHAR(20) NOT NULL,
+        provider_id VARCHAR(255) NOT NULL,
+        UNIQUE(provider, provider_id)
+      )
+    `);
+
     // ── Migrations ────────────────────────────────────────────────────────────
     // Rename files.userid → files.user_id if the table was created with the old name
     await client.query(`
@@ -136,6 +146,21 @@ async function initDB() {
       ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE
     `);
 
+    // Make password_hash nullable so OAuth-only users don't need a local password
+    await client.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'users' AND column_name = 'password_hash'
+            AND is_nullable = 'NO'
+        ) THEN
+          ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
+        END IF;
+      END
+      $$
+    `);
+
     // ── Indexes ───────────────────────────────────────────────────────────────
     await client.query(`CREATE INDEX IF NOT EXISTS idx_files_userid ON files(user_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)`);
@@ -144,6 +169,7 @@ async function initDB() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_playlistitems_playlistid ON playlist_items(playlist_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_playlistitems_fileid ON playlist_items(file_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_subscriptions_userid ON subscriptions(user_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_oauthaccounts_userid ON oauth_accounts(user_id)`);
 
     await client.query('DELETE FROM sessions WHERE expires_at < NOW()');
 
