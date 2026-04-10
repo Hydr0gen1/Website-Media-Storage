@@ -14,11 +14,15 @@ RUN npm run build
 FROM node:20-alpine AS runtime
 
 # Install dumb-init, ffmpeg, and yt-dlp.
-# pip install is used because the Alpine base image (musl libc) cannot run
-# the glibc-linked yt-dlp standalone binaries, and the musl builds have
-# inconsistent filenames across releases.  python3 + pip is the reliable path.
-RUN apk add --no-cache dumb-init ffmpeg python3 py3-pip && \
-    pip3 install --no-cache-dir --break-system-packages yt-dlp
+# Uses a Python venv to avoid PEP-668 "externally managed" errors on
+# newer Alpine/pip without needing the --break-system-packages flag.
+# The final `yt-dlp --version` line makes the build fail loudly if the
+# binary isn't working, rather than silently shipping a broken image.
+RUN apk add --no-cache dumb-init ffmpeg python3 && \
+    python3 -m venv /opt/venv && \
+    /opt/venv/bin/pip install --no-cache-dir yt-dlp && \
+    ln -sf /opt/venv/bin/yt-dlp /usr/local/bin/yt-dlp && \
+    yt-dlp --version
 
 WORKDIR /app
 

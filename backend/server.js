@@ -81,6 +81,16 @@ async function start() {
     require('./scheduler');
     server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
+      // Log yt-dlp availability immediately on startup so it's obvious in logs
+      // whether the binary is present before any download requests come in.
+      const { execFile } = require('child_process');
+      execFile('yt-dlp', ['--version'], (err, stdout) => {
+        if (err) {
+          console.warn('WARNING: yt-dlp not found or not executable:', err.message);
+        } else {
+          console.log('yt-dlp ready:', stdout.trim());
+        }
+      });
     });
   } catch (err) {
     console.error('Failed to start server:', err);
