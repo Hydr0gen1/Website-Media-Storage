@@ -101,12 +101,24 @@ export default function DebugPanel({ apiBase, authToken, onClose }) {
             {d?.ytdlp?.ok && (
               <div className="debug-card-detail">Version {d.ytdlp.version}</div>
             )}
+            {d?.ytdlp && !d.ytdlp.ok && d.ytdlp.foundAt && (
+              <div className="debug-card-detail">Found on disk: {d.ytdlp.foundAt} (not in PATH)</div>
+            )}
+            {d?.ytdlp && !d.ytdlp.ok && !d.ytdlp.foundAt && (
+              <div className="debug-card-detail">Not found on disk in known locations</div>
+            )}
           </CheckCard>
 
           {/* ffmpeg */}
           <CheckCard title="ffmpeg" data={d?.ffmpeg}>
             {d?.ffmpeg?.ok && (
               <div className="debug-card-detail">Version {d.ffmpeg.version}</div>
+            )}
+            {d?.ffmpeg && !d.ffmpeg.ok && d.ffmpeg.foundAt && (
+              <div className="debug-card-detail">Found on disk: {d.ffmpeg.foundAt} (not in PATH)</div>
+            )}
+            {d?.ffmpeg && !d.ffmpeg.ok && !d.ffmpeg.foundAt && (
+              <div className="debug-card-detail">Not found on disk in known locations</div>
             )}
           </CheckCard>
 
@@ -141,6 +153,12 @@ export default function DebugPanel({ apiBase, authToken, onClose }) {
               <div className="debug-card-detail">
                 <div>Node {d.server.nodeVersion} · {d.server.platform}</div>
                 <div>Uptime {fmtUptime(d.server.uptimeSeconds)} · {d.server.memUsedMB} MB RSS · {d.server.cpuCount} CPU</div>
+                <div className={`debug-docker-badge ${d.server.inDocker ? 'debug-docker-yes' : 'debug-docker-no'}`}>
+                  {d.server.inDocker ? 'Running inside Docker' : 'NOT in Docker — running directly on host'}
+                </div>
+                <div style={{ marginTop: 4, wordBreak: 'break-all' }}>
+                  PATH: {d.server.PATH}
+                </div>
               </div>
             )}
           </CheckCard>

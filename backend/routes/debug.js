@@ -1,6 +1,7 @@
 const express = require('express');
 const { execFile } = require('child_process');
-const { statfs } = require('fs/promises');
+const { statfs, access } = require('fs/promises');
+const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { pool } = require('../db');
@@ -19,20 +20,43 @@ function runCmd(cmd, args, timeout = 5000) {
   });
 }
 
+// Helper: check if a file path exists and is executable.
+async function checkPath(p) {
+  try { await access(p, fs.constants.X_OK); return true; } catch { return false; }
+}
+
 // ── GET /api/debug/status ─────────────────────────────────────────────────────
 router.get('/status', async (req, res) => {
   const uploadsDir = path.join(__dirname, '..', 'uploads');
+
+  // Detect Docker: presence of /.dockerenv is the standard indicator.
+  const inDocker = fs.existsSync('/.dockerenv');
+
+  // Scan common binary locations so we can report exactly what's on disk
+  // even when a binary exists but isn't in PATH.
+  const knownPaths = {
+    'yt-dlp': ['/usr/local/bin/yt-dlp', '/usr/bin/yt-dlp', '/opt/venv/bin/yt-dlp'],
+    ffmpeg:   ['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg'],
+  };
+  const foundOnDisk = {};
+  for (const [name, paths] of Object.entries(knownPaths)) {
+    for (const p of paths) {
+      if (await checkPath(p)) { foundOnDisk[name] = p; break; }
+    }
+  }
 
   const [ytdlp, ffmpeg, db, disk] = await Promise.all([
 
     // yt-dlp
     runCmd('yt-dlp', ['--version']).then(r =>
-      r.ok ? { ok: true, version: r.stdout } : r
+      r.ok
+        ? { ok: true, version: r.stdout }
+        : { ...r, foundAt: foundOnDisk['yt-dlp'] || null }
     ),
 
     // ffmpeg — extract just the version string from the first line
     runCmd('ffmpeg', ['-version']).then(r => {
-      if (!r.ok) return r;
+      if (!r.ok) return { ...r, foundAt: foundOnDisk['ffmpeg'] || null };
       const match = r.stdout.match(/ffmpeg version (\S+)/);
       return { ok: true, version: match ? match[1] : r.stdout.split('\n')[0] };
     }),
@@ -78,6 +102,9 @@ router.get('/status', async (req, res) => {
       uptimeSeconds: Math.floor(process.uptime()),
       memUsedMB: Math.round(process.memoryUsage().rss / 1024 / 1024),
       cpuCount: os.cpus().length,
+      inDocker,
+      PATH: process.env.PATH,
+      cwd: process.cwd(),
     },
     fileCount,
   });

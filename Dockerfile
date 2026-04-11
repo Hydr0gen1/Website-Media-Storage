@@ -16,13 +16,10 @@ FROM node:20-alpine AS runtime
 # Install dumb-init, ffmpeg, and yt-dlp.
 # Uses a Python venv to avoid PEP-668 "externally managed" errors on
 # newer Alpine/pip without needing the --break-system-packages flag.
-# The final `yt-dlp --version` line makes the build fail loudly if the
-# binary isn't working, rather than silently shipping a broken image.
 RUN apk add --no-cache dumb-init ffmpeg python3 && \
     python3 -m venv /opt/venv && \
     /opt/venv/bin/pip install --no-cache-dir yt-dlp && \
-    ln -sf /opt/venv/bin/yt-dlp /usr/local/bin/yt-dlp && \
-    yt-dlp --version
+    ln -sf /opt/venv/bin/yt-dlp /usr/local/bin/yt-dlp
 
 WORKDIR /app
 

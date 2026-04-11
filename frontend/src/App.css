@@ -666,6 +666,19 @@ body {
   padding: var(--spacing-xl) 0;
 }
 
+.debug-docker-badge {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  font-family: inherit;
+}
+.debug-docker-yes { background: rgba(52, 199, 89, 0.15); color: var(--success); }
+.debug-docker-no  { background: rgba(255, 59, 48, 0.15); color: var(--error); }
+
 @media (max-width: 400px) {
   .debug-grid { grid-template-columns: 1fr; }
 }
