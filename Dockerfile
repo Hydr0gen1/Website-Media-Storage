@@ -11,12 +11,14 @@ COPY frontend/ ./
 RUN npm run build
 
 # ── Stage 2: Runtime ──────────────────────────────────────────────────────────
-FROM node:20-alpine AS runtime
+# node:20-slim (Debian) is used instead of Alpine so that apt packages and
+# pip installs are more reliable.  Switching base images busts all layer
+# cache and guarantees a clean install of ffmpeg and yt-dlp.
+FROM node:20-slim AS runtime
 
-# Install dumb-init, ffmpeg, and yt-dlp.
-# Uses a Python venv to avoid PEP-668 "externally managed" errors on
-# newer Alpine/pip without needing the --break-system-packages flag.
-RUN apk add --no-cache dumb-init ffmpeg python3 && \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends dumb-init ffmpeg python3 python3-venv && \
+    rm -rf /var/lib/apt/lists/* && \
     python3 -m venv /opt/venv && \
     /opt/venv/bin/pip install --no-cache-dir yt-dlp && \
     ln -sf /opt/venv/bin/yt-dlp /usr/local/bin/yt-dlp

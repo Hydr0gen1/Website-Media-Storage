@@ -35,8 +35,8 @@ router.get('/status', async (req, res) => {
   // Scan common binary locations so we can report exactly what's on disk
   // even when a binary exists but isn't in PATH.
   const knownPaths = {
-    'yt-dlp': ['/usr/local/bin/yt-dlp', '/usr/bin/yt-dlp', '/opt/venv/bin/yt-dlp'],
-    ffmpeg:   ['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg'],
+    'yt-dlp': ['/usr/local/bin/yt-dlp', '/usr/bin/yt-dlp', '/opt/venv/bin/yt-dlp', '/usr/local/bin/yt-dlp3'],
+    ffmpeg:   ['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg', '/usr/bin/ffmpeg-static'],
   };
   const foundOnDisk = {};
   for (const [name, paths] of Object.entries(knownPaths)) {
